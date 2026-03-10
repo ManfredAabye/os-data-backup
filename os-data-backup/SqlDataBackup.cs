@@ -23,11 +23,15 @@ namespace OpenSim.Addons.SqlDataBackup
 		private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 		private static readonly Regex s_safeTableNameRegex = new Regex("^[A-Za-z0-9_]+$", RegexOptions.Compiled);
 		private const string OtbExtension = ".otb";
+		private const long DefaultMaxSingleTableExportBytes = 1024L * 1024L * 1024L;
+		private const long DefaultMaxOtbPartBytes = 512L * 1024L * 1024L;
 
 		private readonly bool m_enabled;
 		private readonly string m_connectionString;
 		private readonly string m_commandPrefix;
 		private readonly string m_backupFolder;
+		private readonly long m_maxSingleTableExportBytes;
+		private readonly long m_maxOtbPartBytes;
 		private readonly object m_tableProcessingLock = new object();
 		private int m_bulkOperationRunning;
 
@@ -46,6 +50,8 @@ namespace OpenSim.Addons.SqlDataBackup
 			m_connectionString = moduleConfig.GetString("ConnectionString", dbConfig != null ? dbConfig.GetString("ConnectionString", string.Empty) : string.Empty);
 			m_commandPrefix = moduleConfig.GetString("CommandPrefix", "sqlbackup").Trim();
 			m_backupFolder = moduleConfig.GetString("BackupFolder", "backupOTB");
+			m_maxSingleTableExportBytes = ReadMaxSingleTableExportBytes(moduleConfig);
+			m_maxOtbPartBytes = ReadMaxOtbPartBytes(moduleConfig);
 
 			if (string.IsNullOrWhiteSpace(m_connectionString))
 			{
@@ -80,7 +86,30 @@ namespace OpenSim.Addons.SqlDataBackup
 				"Importiert eine oder alle Tabellen aus .otb Archiven.",
 				HandleCommand);
 
-			m_log.InfoFormat("[SQL DATA BACKUP]: Aktiviert. Kommando-Praefix '{0}'.", m_commandPrefix);
+			m_log.InfoFormat("[SQL DATA BACKUP]: Aktiviert. Kommando-Praefix '{0}', MaxSingleTableExportBytes={1}, MaxOtbPartBytes={2}.", m_commandPrefix, m_maxSingleTableExportBytes, m_maxOtbPartBytes);
+		}
+
+		private static long ReadMaxSingleTableExportBytes(IConfig moduleConfig)
+		{
+			string configured = moduleConfig.GetString("MaxSingleTableExportBytes", DefaultMaxSingleTableExportBytes.ToString(CultureInfo.InvariantCulture));
+			if (long.TryParse(configured, NumberStyles.Integer, CultureInfo.InvariantCulture, out long parsed) && parsed > 0)
+				return parsed;
+
+			return DefaultMaxSingleTableExportBytes;
+		}
+
+		private static long ReadMaxOtbPartBytes(IConfig moduleConfig)
+		{
+			string configured = moduleConfig.GetString("MaxOtbPartBytes", DefaultMaxOtbPartBytes.ToString(CultureInfo.InvariantCulture));
+			if (long.TryParse(configured, NumberStyles.Integer, CultureInfo.InvariantCulture, out long parsed) && parsed > 0)
+			{
+				if (parsed > int.MaxValue)
+					return int.MaxValue;
+
+				return parsed;
+			}
+
+			return DefaultMaxOtbPartBytes;
 		}
 
 		private void HandleCommand(string module, string[] cmd)
@@ -273,6 +302,7 @@ namespace OpenSim.Addons.SqlDataBackup
 		private static string GetTableNameFromBackupFile(string filePath)
 		{
 			string name = Path.GetFileNameWithoutExtension(filePath) ?? string.Empty;
+			name = Regex.Replace(name, "\\.part\\d{4}$", string.Empty, RegexOptions.IgnoreCase);
 			Match m = Regex.Match(name, "^(?<table>[A-Za-z0-9_]+)_\\d{8}_\\d{6}$");
 			if (m.Success)
 				return m.Groups["table"].Value;
@@ -287,16 +317,26 @@ namespace OpenSim.Addons.SqlDataBackup
 				EnsureSafeTableName(tableName);
 				filePath = EnsureOtbPath(filePath);
 
-				string scriptText = BuildTableDumpScript(tableName, out int rowCount);
+				long approxBytes = GetApproxTableSizeBytes(tableName);
+				if (approxBytes > m_maxSingleTableExportBytes)
+				{
+					throw new InvalidOperationException(
+						"Tabelle zu gross fuer OTB-Export in diesem Modus: " + tableName
+						+ " (ca. " + approxBytes.ToString(CultureInfo.InvariantCulture)
+						+ " Bytes, Limit " + m_maxSingleTableExportBytes.ToString(CultureInfo.InvariantCulture)
+						+ "). Bitte Tabelle aufteilen oder extern dumpen.");
+				}
+
+				List<string> scriptParts = BuildTableDumpScripts(tableName, m_maxOtbPartBytes, out int rowCount);
 
 				string directory = Path.GetDirectoryName(Path.GetFullPath(filePath));
 				if (!string.IsNullOrWhiteSpace(directory))
 					Directory.CreateDirectory(directory);
 
-				WriteOtbArchive(filePath, tableName, scriptText);
+				WriteOtbArchives(filePath, tableName, scriptParts);
 
 				if (verbose)
-					MainConsole.Instance.Output("Exportiert: {0} ({1} Zeilen) -> {2}", tableName, rowCount, filePath);
+					MainConsole.Instance.Output("Exportiert: {0} ({1} Zeilen, {2} Teil(e)) -> {3}", tableName, rowCount, scriptParts.Count, filePath);
 			}
 		}
 
@@ -327,7 +367,7 @@ namespace OpenSim.Addons.SqlDataBackup
 			}
 		}
 
-		private string BuildTableDumpScript(string tableName, out int rowCount)
+		private List<string> BuildTableDumpScripts(string tableName, long maxPartBytes, out int rowCount)
 		{
 			string createStatement = string.Empty;
 			List<string> columns = new List<string>();
@@ -365,23 +405,120 @@ namespace OpenSim.Addons.SqlDataBackup
 
 			rowCount = insertLines.Count;
 
-			StringBuilder builder = new StringBuilder(1024 + (insertLines.Count * 64));
-			builder.AppendLine("-- OpenSim SQL Data Backup");
-			builder.AppendLine("-- Table: " + tableName);
-			builder.AppendLine("-- Created UTC: " + DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture));
-			builder.AppendLine();
-			builder.AppendLine("SET FOREIGN_KEY_CHECKS=0;");
-			builder.AppendLine("DROP TABLE IF EXISTS `" + tableName + "`;");
-			builder.AppendLine(createStatement + ";");
-
-			foreach (string line in insertLines)
-				builder.AppendLine(line);
-
-			builder.AppendLine("SET FOREIGN_KEY_CHECKS=1;");
-			return builder.ToString();
+			return BuildSplitScripts(tableName, createStatement, insertLines, maxPartBytes);
 		}
 
-		private static void WriteOtbArchive(string filePath, string tableName, string scriptText)
+		private static List<string> BuildSplitScripts(string tableName, string createStatement, List<string> insertLines, long maxPartBytes)
+		{
+			List<string> scripts = new List<string>();
+			Encoding enc = new UTF8Encoding(false);
+			string createdUtc = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
+
+			string firstHeader = "-- OpenSim SQL Data Backup\n"
+				+ "-- Table: " + tableName + "\n"
+				+ "-- Created UTC: " + createdUtc + "\n\n"
+				+ "SET FOREIGN_KEY_CHECKS=0;\n"
+				+ "DROP TABLE IF EXISTS `" + tableName + "`;\n"
+				+ createStatement + ";\n";
+
+			string nextHeader = "-- OpenSim SQL Data Backup\n"
+				+ "-- Table: " + tableName + "\n"
+				+ "-- Created UTC: " + createdUtc + "\n"
+				+ "-- Continuation\n\n"
+				+ "SET FOREIGN_KEY_CHECKS=0;\n";
+
+			const string footer = "SET FOREIGN_KEY_CHECKS=1;\n";
+
+			if (maxPartBytes <= 0)
+				maxPartBytes = DefaultMaxOtbPartBytes;
+
+			StringBuilder current = new StringBuilder(firstHeader.Length + footer.Length + 1024);
+			current.Append(firstHeader);
+			long currentBytes = enc.GetByteCount(firstHeader);
+			long footerBytes = enc.GetByteCount(footer);
+			bool partHasRows = false;
+			bool firstPart = true;
+
+			for (int i = 0; i < insertLines.Count; i++)
+			{
+				string line = insertLines[i] + "\n";
+				long lineBytes = enc.GetByteCount(line);
+
+				if (partHasRows && (currentBytes + lineBytes + footerBytes > maxPartBytes))
+				{
+					current.Append(footer);
+					scripts.Add(current.ToString());
+
+					current = new StringBuilder(nextHeader.Length + footer.Length + 1024);
+					current.Append(nextHeader);
+					currentBytes = enc.GetByteCount(nextHeader);
+					partHasRows = false;
+					firstPart = false;
+				}
+
+				current.Append(line);
+				currentBytes += lineBytes;
+				partHasRows = true;
+			}
+
+			if (!partHasRows && !firstPart)
+			{
+				// No rows left for trailing part, skip creating an empty continuation file.
+			}
+			else
+			{
+				current.Append(footer);
+				scripts.Add(current.ToString());
+			}
+
+			if (scripts.Count == 0)
+			{
+				StringBuilder empty = new StringBuilder(firstHeader.Length + footer.Length + 16);
+				empty.Append(firstHeader);
+				empty.Append(footer);
+				scripts.Add(empty.ToString());
+			}
+
+			return scripts;
+		}
+
+		private static void WriteOtbArchives(string filePath, string tableName, List<string> scriptParts)
+		{
+			if (scriptParts == null || scriptParts.Count == 0)
+				throw new InvalidOperationException("Keine SQL-Daten zum Schreiben vorhanden.");
+
+			if (scriptParts.Count == 1)
+			{
+				WriteSingleOtbArchive(filePath, tableName, scriptParts[0]);
+				return;
+			}
+
+			string basePath = Path.Combine(Path.GetDirectoryName(filePath) ?? string.Empty, Path.GetFileNameWithoutExtension(filePath));
+			DeleteExistingPartFiles(basePath);
+
+			for (int i = 0; i < scriptParts.Count; i++)
+			{
+				string partPath = basePath + ".part" + (i + 1).ToString("D4", CultureInfo.InvariantCulture) + OtbExtension;
+				WriteSingleOtbArchive(partPath, tableName, scriptParts[i]);
+			}
+		}
+
+		private static void DeleteExistingPartFiles(string basePath)
+		{
+			string directory = Path.GetDirectoryName(basePath);
+			if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory))
+				return;
+
+			string baseName = Path.GetFileName(basePath);
+			string[] existing = Directory.GetFiles(directory, baseName + ".part*" + OtbExtension);
+			for (int i = 0; i < existing.Length; i++)
+			{
+				File.SetAttributes(existing[i], FileAttributes.Normal);
+				File.Delete(existing[i]);
+			}
+		}
+
+		private static void WriteSingleOtbArchive(string filePath, string tableName, string scriptText)
 		{
 			byte[] sqlData = new UTF8Encoding(false).GetBytes(scriptText);
 
@@ -475,6 +612,26 @@ namespace OpenSim.Addons.SqlDataBackup
 
 			tables.Sort(StringComparer.OrdinalIgnoreCase);
 			return tables;
+		}
+
+		private long GetApproxTableSizeBytes(string tableName)
+		{
+			using (MySqlConnection conn = new MySqlConnection(m_connectionString))
+			{
+				conn.Open();
+
+				using (MySqlCommand cmd = conn.CreateCommand())
+				{
+					cmd.CommandText = "SELECT COALESCE(DATA_LENGTH,0) + COALESCE(INDEX_LENGTH,0) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @table";
+					cmd.Parameters.AddWithValue("@table", tableName);
+
+					object result = cmd.ExecuteScalar();
+					if (result == null || result == DBNull.Value)
+						return 0;
+
+					return Convert.ToInt64(result, CultureInfo.InvariantCulture);
+				}
+			}
 		}
 
 		private static string BuildInsertLine(string tableName, IDataRecord row, List<string> columnNames)
