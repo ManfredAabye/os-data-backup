@@ -95,7 +95,7 @@ namespace OpenSim.Addons.SqlDataBackup
 			catch (Exception ex)
 			{
 				m_log.Error("[SQL DATA BACKUP]: Fehler im Kommando.", ex);
-				MainConsole.Instance.OutputFormat("Fehler: {0}", ex.Message);
+				MainConsole.Instance.Output("Fehler: {0}", ex.Message);
 			}
 		}
 
@@ -103,7 +103,7 @@ namespace OpenSim.Addons.SqlDataBackup
 		{
 			if (cmd.Length < 4)
 			{
-				MainConsole.Instance.OutputFormat("Syntax: {0} export <table|all> <datei.otb|ordner>", m_commandPrefix);
+				MainConsole.Instance.Output("Syntax: {0} export <table|all> <datei.otb|ordner>", m_commandPrefix);
 				return;
 			}
 
@@ -124,7 +124,7 @@ namespace OpenSim.Addons.SqlDataBackup
 		{
 			if (cmd.Length < 4)
 			{
-				MainConsole.Instance.OutputFormat("Syntax: {0} import <table|all> <datei.otb|ordner>", m_commandPrefix);
+				MainConsole.Instance.Output("Syntax: {0} import <table|all> <datei.otb|ordner>", m_commandPrefix);
 				return;
 			}
 
@@ -147,7 +147,7 @@ namespace OpenSim.Addons.SqlDataBackup
 			MainConsole.Instance.Output("Tabellen:");
 			foreach (string table in tables)
 				MainConsole.Instance.Output(" - " + table);
-			MainConsole.Instance.OutputFormat("Gesamt: {0}", tables.Count);
+			MainConsole.Instance.Output("Gesamt: {0}", tables.Count);
 		}
 
 		private void ExportAllTables(string folderPath)
@@ -166,7 +166,7 @@ namespace OpenSim.Addons.SqlDataBackup
 				done++;
 			}
 
-			MainConsole.Instance.OutputFormat("Export abgeschlossen: {0}/{1} Tabellen nach {2}", done, tables.Count, folderPath);
+			MainConsole.Instance.Output("Export abgeschlossen: {0}/{1} Tabellen nach {2}", done, tables.Count, folderPath);
 		}
 
 		private void ImportAllTables(string folderPath)
@@ -186,7 +186,7 @@ namespace OpenSim.Addons.SqlDataBackup
 				string table = Path.GetFileNameWithoutExtension(file);
 				if (!IsSafeTableName(table))
 				{
-					MainConsole.Instance.OutputFormat("Ueberspringe unsicheren Dateinamen: {0}", file);
+					MainConsole.Instance.Output("Ueberspringe unsicheren Dateinamen: {0}", file);
 					continue;
 				}
 
@@ -194,7 +194,7 @@ namespace OpenSim.Addons.SqlDataBackup
 				done++;
 			}
 
-			MainConsole.Instance.OutputFormat("Import abgeschlossen: {0}/{1} Dateien aus {2}", done, files.Length, folderPath);
+			MainConsole.Instance.Output("Import abgeschlossen: {0}/{1} Dateien aus {2}", done, files.Length, folderPath);
 		}
 
 		private void ExportTable(string tableName, string filePath)
@@ -210,7 +210,7 @@ namespace OpenSim.Addons.SqlDataBackup
 
 			WriteOtbArchive(filePath, tableName, scriptText);
 
-			MainConsole.Instance.OutputFormat("Exportiert: {0} ({1} Zeilen) -> {2}", tableName, rowCount, filePath);
+			MainConsole.Instance.Output("Exportiert: {0} ({1} Zeilen) -> {2}", tableName, rowCount, filePath);
 		}
 
 		private void ImportTable(string tableName, string filePath)
@@ -233,7 +233,7 @@ namespace OpenSim.Addons.SqlDataBackup
 				script.Execute();
 			}
 
-			MainConsole.Instance.OutputFormat("Importiert: {0} <- {1}", tableName, filePath);
+			MainConsole.Instance.Output("Importiert: {0} <- {1}", tableName, filePath);
 		}
 
 		private string BuildTableDumpScript(string tableName, out int rowCount)
@@ -442,11 +442,11 @@ namespace OpenSim.Addons.SqlDataBackup
 
 		private void ShowUsage()
 		{
-			MainConsole.Instance.OutputFormat("{0} list", m_commandPrefix);
-			MainConsole.Instance.OutputFormat("{0} export <table> <datei.otb>", m_commandPrefix);
-			MainConsole.Instance.OutputFormat("{0} export all <ordner>", m_commandPrefix);
-			MainConsole.Instance.OutputFormat("{0} import <table> <datei.otb>", m_commandPrefix);
-			MainConsole.Instance.OutputFormat("{0} import all <ordner>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} list", m_commandPrefix);
+			MainConsole.Instance.Output("{0} export <table> <datei.otb>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} export all <ordner>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} import <table> <datei.otb>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} import all <ordner>", m_commandPrefix);
 		}
 	}
 }
