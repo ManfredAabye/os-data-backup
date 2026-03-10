@@ -7,6 +7,7 @@ using System.IO.Compression;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using log4net;
 using MySql.Data.MySqlClient;
 using Nini.Config;
@@ -27,6 +28,7 @@ namespace OpenSim.Addons.SqlDataBackup
 		private readonly string m_connectionString;
 		private readonly string m_commandPrefix;
 		private readonly string m_backupFolder;
+		private int m_bulkOperationRunning;
 
 		public SqlDataBackup(IConfigSource config, IHttpServer server, string configName)
 		{
@@ -127,12 +129,12 @@ namespace OpenSim.Addons.SqlDataBackup
 
 			if (scope.Equals("all", StringComparison.OrdinalIgnoreCase))
 			{
-				ExportAllTables(targetPath);
+				RunBulkInBackground("export all", () => ExportAllTables(targetPath));
 				return;
 			}
 
 			EnsureSafeTableName(scope);
-			ExportTable(scope, targetPath);
+			ExportTable(scope, targetPath, true);
 		}
 
 		private void HandleImport(string[] cmd)
@@ -148,12 +150,12 @@ namespace OpenSim.Addons.SqlDataBackup
 
 			if (scope.Equals("all", StringComparison.OrdinalIgnoreCase))
 			{
-				ImportAllTables(sourcePath);
+				RunBulkInBackground("import all", () => ImportAllTables(sourcePath));
 				return;
 			}
 
 			EnsureSafeTableName(scope);
-			ImportTable(scope, sourcePath);
+			ImportTable(scope, sourcePath, true);
 		}
 
 		private void ListTables()
@@ -175,14 +177,24 @@ namespace OpenSim.Addons.SqlDataBackup
 
 			List<string> tables = GetAllTables();
 			int done = 0;
+			int failed = 0;
 			foreach (string table in tables)
 			{
-				string filePath = Path.Combine(folderPath, table + "_" + batchTimestamp + OtbExtension);
-				ExportTable(table, filePath);
-				done++;
+				try
+				{
+					string filePath = Path.Combine(folderPath, table + "_" + batchTimestamp + OtbExtension);
+					ExportTable(table, filePath, false);
+					done++;
+				}
+				catch (Exception ex)
+				{
+					failed++;
+					m_log.Error("[SQL DATA BACKUP]: Export fuer Tabelle fehlgeschlagen: " + table, ex);
+					MainConsole.Instance.Output("Fehler bei Export von {0}: {1}", table, ex.Message);
+				}
 			}
 
-			MainConsole.Instance.Output("Export abgeschlossen: {0}/{1} Tabellen nach {2}", done, tables.Count, folderPath);
+			MainConsole.Instance.Output("Export abgeschlossen: {0} ok, {1} Fehler, Ziel {2}", done, failed, folderPath);
 		}
 
 		private void ImportAllTables(string folderPath)
@@ -197,23 +209,70 @@ namespace OpenSim.Addons.SqlDataBackup
 			Array.Sort(files, StringComparer.OrdinalIgnoreCase);
 
 			int done = 0;
+			int failed = 0;
 			foreach (string file in files)
 			{
-				string table = Path.GetFileNameWithoutExtension(file);
+				string table = GetTableNameFromBackupFile(file);
 				if (!IsSafeTableName(table))
 				{
 					MainConsole.Instance.Output("Ueberspringe unsicheren Dateinamen: {0}", file);
 					continue;
 				}
 
-				ImportTable(table, file);
-				done++;
+				try
+				{
+					ImportTable(table, file, false);
+					done++;
+				}
+				catch (Exception ex)
+				{
+					failed++;
+					m_log.Error("[SQL DATA BACKUP]: Import aus Datei fehlgeschlagen: " + file, ex);
+					MainConsole.Instance.Output("Fehler bei Import aus {0}: {1}", file, ex.Message);
+				}
 			}
 
-			MainConsole.Instance.Output("Import abgeschlossen: {0}/{1} Dateien aus {2}", done, files.Length, folderPath);
+			MainConsole.Instance.Output("Import abgeschlossen: {0} ok, {1} Fehler, Quelle {2}", done, failed, folderPath);
 		}
 
-		private void ExportTable(string tableName, string filePath)
+		private void RunBulkInBackground(string operationName, Action operation)
+		{
+			if (Interlocked.CompareExchange(ref m_bulkOperationRunning, 1, 0) != 0)
+			{
+				MainConsole.Instance.Output("Es laeuft bereits ein SQL-Backup Bulk-Job. Bitte warten.");
+				return;
+			}
+
+			MainConsole.Instance.Output("Starte {0} im Hintergrund...", operationName);
+			ThreadPool.QueueUserWorkItem(_ =>
+			{
+				try
+				{
+					operation();
+				}
+				catch (Exception ex)
+				{
+					m_log.Error("[SQL DATA BACKUP]: Bulk-Operation fehlgeschlagen.", ex);
+					MainConsole.Instance.Output("Bulk-Operation fehlgeschlagen: {0}", ex.Message);
+				}
+				finally
+				{
+					Interlocked.Exchange(ref m_bulkOperationRunning, 0);
+				}
+			});
+		}
+
+		private static string GetTableNameFromBackupFile(string filePath)
+		{
+			string name = Path.GetFileNameWithoutExtension(filePath) ?? string.Empty;
+			Match m = Regex.Match(name, "^(?<table>[A-Za-z0-9_]+)_\\d{8}_\\d{6}$");
+			if (m.Success)
+				return m.Groups["table"].Value;
+
+			return name;
+		}
+
+		private void ExportTable(string tableName, string filePath, bool verbose)
 		{
 			EnsureSafeTableName(tableName);
 			filePath = EnsureOtbPath(filePath);
@@ -226,10 +285,11 @@ namespace OpenSim.Addons.SqlDataBackup
 
 			WriteOtbArchive(filePath, tableName, scriptText);
 
-			MainConsole.Instance.Output("Exportiert: {0} ({1} Zeilen) -> {2}", tableName, rowCount, filePath);
+			if (verbose)
+				MainConsole.Instance.Output("Exportiert: {0} ({1} Zeilen) -> {2}", tableName, rowCount, filePath);
 		}
 
-		private void ImportTable(string tableName, string filePath)
+		private void ImportTable(string tableName, string filePath, bool verbose)
 		{
 			EnsureSafeTableName(tableName);
 			filePath = EnsureOtbPath(filePath);
@@ -249,7 +309,8 @@ namespace OpenSim.Addons.SqlDataBackup
 				script.Execute();
 			}
 
-			MainConsole.Instance.Output("Importiert: {0} <- {1}", tableName, filePath);
+			if (verbose)
+				MainConsole.Instance.Output("Importiert: {0} <- {1}", tableName, filePath);
 		}
 
 		private string BuildTableDumpScript(string tableName, out int rowCount)
