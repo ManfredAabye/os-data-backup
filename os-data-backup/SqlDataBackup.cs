@@ -331,13 +331,14 @@ namespace OpenSim.Addons.SqlDataBackup
 				if (!string.IsNullOrWhiteSpace(directory))
 					Directory.CreateDirectory(directory);
 
-				ExportTableToOtbParts(tableName, filePath, out int rowCount, out int partCount);
+				ExportTableToOtbParts(tableName, filePath, out int rowCount, out int skippedRows, out int partCount);
 				long totalBackupBytes = GetWrittenBackupSizeBytes(filePath, partCount);
 
 				MainConsole.Instance.Output(
-					"Tabelle gespeichert: {0} ({1} Eintraege, {2} Teil(e), {3}) -> {4}",
+					"Tabelle gespeichert: {0} ({1} Eintraege, {2} uebersprungen, {3} Teil(e), {4}) -> {5}",
 					tableName,
 					rowCount,
+					skippedRows,
 					partCount,
 					FormatSize(totalBackupBytes),
 					filePath);
@@ -361,17 +362,26 @@ namespace OpenSim.Addons.SqlDataBackup
 				using (MySqlConnection conn = new MySqlConnection(m_connectionString))
 				{
 					conn.Open();
+					ExecuteScriptLenient(conn, tableName, filePath, scriptText, out int executedStatements, out int failedStatements);
 
-					MySqlScript script = new MySqlScript(conn, scriptText);
-					script.Execute();
+					if (failedStatements > 0)
+					{
+						MainConsole.Instance.Output(
+							"Import mit Fehlern fortgesetzt: {0} ({1} Statements ok, {2} uebersprungen) <- {3}",
+							tableName,
+							executedStatements,
+							failedStatements,
+							filePath);
+					}
+					else if (verbose)
+					{
+						MainConsole.Instance.Output("Importiert: {0} ({1} Statements) <- {2}", tableName, executedStatements, filePath);
+					}
 				}
-
-				if (verbose)
-					MainConsole.Instance.Output("Importiert: {0} <- {1}", tableName, filePath);
 			}
 		}
 
-		private void ExportTableToOtbParts(string tableName, string filePath, out int rowCount, out int partCount)
+		private void ExportTableToOtbParts(string tableName, string filePath, out int rowCount, out int skippedRows, out int partCount)
 		{
 			string createStatement = string.Empty;
 			List<string> columns = new List<string>();
@@ -388,6 +398,7 @@ namespace OpenSim.Addons.SqlDataBackup
 			bool currentPartHasRows = false;
 			bool splitMode = false;
 			rowCount = 0;
+			skippedRows = 0;
 			partCount = 0;
 
 			DeleteExistingSplitArtifacts(filePath, basePath);
@@ -424,7 +435,18 @@ namespace OpenSim.Addons.SqlDataBackup
 
 						while (reader.Read())
 						{
-							string insertLine = BuildInsertLine(tableName, reader, columns) + "\n";
+							string insertLine;
+							try
+							{
+								insertLine = BuildInsertLine(tableName, reader, columns) + "\n";
+							}
+							catch (Exception ex)
+							{
+								skippedRows++;
+								m_log.Error("[SQL DATA BACKUP]: Export-Eintrag uebersprungen fuer Tabelle " + tableName, ex);
+								continue;
+							}
+
 							long lineBytes = enc.GetByteCount(insertLine);
 
 							if (currentPartHasRows && currentBytes + lineBytes + footerBytes > maxPartBytes)
@@ -458,6 +480,98 @@ namespace OpenSim.Addons.SqlDataBackup
 			{
 				FinalizePartWrite(filePath, basePath, tableName, currentPart, footer, ++partCount, splitMode);
 			}
+		}
+
+		private void ExecuteScriptLenient(MySqlConnection conn, string tableName, string filePath, string scriptText, out int executedStatements, out int failedStatements)
+		{
+			executedStatements = 0;
+			failedStatements = 0;
+
+			foreach (string statement in SplitSqlStatements(scriptText))
+			{
+				if (string.IsNullOrWhiteSpace(statement))
+					continue;
+
+				using (MySqlCommand cmd = conn.CreateCommand())
+				{
+					cmd.CommandText = statement;
+					try
+					{
+						cmd.ExecuteNonQuery();
+						executedStatements++;
+					}
+					catch (Exception ex)
+					{
+						failedStatements++;
+						string preview = statement.Length > 180 ? statement.Substring(0, 180) + "..." : statement;
+						m_log.Error("[SQL DATA BACKUP]: Import-Statement uebersprungen fuer Tabelle " + tableName + " aus " + filePath + " -> " + preview, ex);
+					}
+				}
+			}
+		}
+
+		private static IEnumerable<string> SplitSqlStatements(string scriptText)
+		{
+			StringBuilder sb = new StringBuilder(scriptText.Length > 4096 ? 4096 : scriptText.Length);
+			bool inSingleQuote = false;
+			bool inDoubleQuote = false;
+			bool inBacktick = false;
+			bool escaped = false;
+
+			for (int i = 0; i < scriptText.Length; i++)
+			{
+				char c = scriptText[i];
+
+				if (escaped)
+				{
+					sb.Append(c);
+					escaped = false;
+					continue;
+				}
+
+				if (c == '\\')
+				{
+					sb.Append(c);
+					escaped = true;
+					continue;
+				}
+
+				if (!inDoubleQuote && !inBacktick && c == '\'')
+				{
+					inSingleQuote = !inSingleQuote;
+					sb.Append(c);
+					continue;
+				}
+
+				if (!inSingleQuote && !inBacktick && c == '"')
+				{
+					inDoubleQuote = !inDoubleQuote;
+					sb.Append(c);
+					continue;
+				}
+
+				if (!inSingleQuote && !inDoubleQuote && c == '`')
+				{
+					inBacktick = !inBacktick;
+					sb.Append(c);
+					continue;
+				}
+
+				if (!inSingleQuote && !inDoubleQuote && !inBacktick && c == ';')
+				{
+					string statement = sb.ToString().Trim();
+					sb.Clear();
+					if (!string.IsNullOrWhiteSpace(statement))
+						yield return statement;
+					continue;
+				}
+
+				sb.Append(c);
+			}
+
+			string trailing = sb.ToString().Trim();
+			if (!string.IsNullOrWhiteSpace(trailing))
+				yield return trailing;
 		}
 
 		private static string BuildPartHeader(string tableName, string createStatement, string createdUtc, bool firstPart)
