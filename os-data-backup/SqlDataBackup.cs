@@ -13,10 +13,11 @@ using Nini.Config;
 using OpenSim.Framework;
 using OpenSim.Framework.Servers.HttpServer;
 using OpenSim.Framework.Serialization;
+using OpenSim.Server.Handlers.Base;
 
 namespace OpenSim.Addons.SqlDataBackup
 {
-	public class SqlDataBackup
+	public class SqlDataBackup : ServiceConnector
 	{
 		private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 		private static readonly Regex s_safeTableNameRegex = new Regex("^[A-Za-z0-9_]+$", RegexOptions.Compiled);
@@ -57,9 +58,23 @@ namespace OpenSim.Addons.SqlDataBackup
 
 			MainConsole.Instance.Commands.AddCommand(
 				"Data", false,
-				m_commandPrefix,
-				m_commandPrefix + " list|export|import ...",
-				"Sichert oder importiert MySQL Robust Tabellen.",
+				m_commandPrefix + " list",
+				m_commandPrefix + " list",
+				"Listet alle Tabellen in der Datenbank auf.",
+				HandleCommand);
+
+			MainConsole.Instance.Commands.AddCommand(
+				"Data", false,
+				m_commandPrefix + " export",
+				m_commandPrefix + " export <table|all> <datei.otb|ordner>",
+				"Exportiert eine oder alle Tabellen als .otb Archiv.",
+				HandleCommand);
+
+			MainConsole.Instance.Commands.AddCommand(
+				"Data", false,
+				m_commandPrefix + " import",
+				m_commandPrefix + " import <table|all> <datei.otb|ordner>",
+				"Importiert eine oder alle Tabellen aus .otb Archiven.",
 				HandleCommand);
 
 			m_log.InfoFormat("[SQL DATA BACKUP]: Aktiviert. Kommando-Praefix '{0}'.", m_commandPrefix);
