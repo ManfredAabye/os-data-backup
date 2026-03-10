@@ -171,12 +171,13 @@ namespace OpenSim.Addons.SqlDataBackup
 				folderPath = m_backupFolder;
 
 			Directory.CreateDirectory(folderPath);
+			string batchTimestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
 
 			List<string> tables = GetAllTables();
 			int done = 0;
 			foreach (string table in tables)
 			{
-				string filePath = Path.Combine(folderPath, table + OtbExtension);
+				string filePath = Path.Combine(folderPath, table + "_" + batchTimestamp + OtbExtension);
 				ExportTable(table, filePath);
 				done++;
 			}
@@ -308,6 +309,13 @@ namespace OpenSim.Addons.SqlDataBackup
 		private static void WriteOtbArchive(string filePath, string tableName, string scriptText)
 		{
 			byte[] sqlData = new UTF8Encoding(false).GetBytes(scriptText);
+
+			if (File.Exists(filePath))
+			{
+				File.SetAttributes(filePath, FileAttributes.Normal);
+				File.Delete(filePath);
+			}
+
 			using (FileStream fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
 			using (GZipStream gzip = new GZipStream(fileStream, CompressionMode.Compress))
 			{
