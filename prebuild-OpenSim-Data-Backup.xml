@@ -20,6 +20,7 @@
 	<Reference name="OpenMetaverseTypes"/>
 
 	<Reference name="OpenSim.Framework"/>
+	<Reference name="OpenSim.Framework.Serialization"/>
 	<Reference name="OpenSim.Framework.Servers.HttpServer"/>
 
 	<Files>
