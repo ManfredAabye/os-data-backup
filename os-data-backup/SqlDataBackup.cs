@@ -57,21 +57,21 @@ namespace OpenSim.Addons.SqlDataBackup
 			}
 
 			MainConsole.Instance.Commands.AddCommand(
-				"Data", false,
+				"Backup", false,
 				m_commandPrefix + " list",
 				m_commandPrefix + " list",
 				"Listet alle Tabellen in der Datenbank auf.",
 				HandleCommand);
 
 			MainConsole.Instance.Commands.AddCommand(
-				"Data", false,
+				"Backup", false,
 				m_commandPrefix + " export",
 				m_commandPrefix + " export <table|all> <datei.otb|ordner>",
 				"Exportiert eine oder alle Tabellen als .otb Archiv.",
 				HandleCommand);
 
 			MainConsole.Instance.Commands.AddCommand(
-				"Data", false,
+				"Backup", false,
 				m_commandPrefix + " import",
 				m_commandPrefix + " import <table|all> <datei.otb|ordner>",
 				"Importiert eine oder alle Tabellen aus .otb Archiven.",
