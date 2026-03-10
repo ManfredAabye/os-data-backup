@@ -119,14 +119,14 @@ namespace OpenSim.Addons.SqlDataBackup
 
 		private void HandleExport(string[] cmd)
 		{
-			if (cmd.Length < 4)
+			if (cmd.Length < 3)
 			{
 				ShowUsage();
 				return;
 			}
 
 			string scope = cmd[2];
-			string targetPath = cmd[3];
+			string targetPath = cmd.Length >= 4 ? cmd[3] : string.Empty;
 
 			if (scope.Equals("all", StringComparison.OrdinalIgnoreCase))
 			{
@@ -135,6 +135,11 @@ namespace OpenSim.Addons.SqlDataBackup
 			}
 
 			EnsureSafeTableName(scope);
+			if (string.IsNullOrWhiteSpace(targetPath))
+				targetPath = BuildDefaultBackupFilePath(scope);
+			else if (Directory.Exists(targetPath))
+				targetPath = Path.Combine(targetPath, BuildTimestampedBackupFileName(scope));
+
 			ExportTable(scope, targetPath, true);
 		}
 
@@ -431,6 +436,18 @@ namespace OpenSim.Addons.SqlDataBackup
 				return path;
 
 			return path + OtbExtension;
+		}
+
+		private string BuildDefaultBackupFilePath(string tableName)
+		{
+			Directory.CreateDirectory(m_backupFolder);
+			return Path.Combine(m_backupFolder, BuildTimestampedBackupFileName(tableName));
+		}
+
+		private static string BuildTimestampedBackupFileName(string tableName)
+		{
+			string timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
+			return tableName + "_" + timestamp + OtbExtension;
 		}
 
 		private List<string> GetAllTables()
