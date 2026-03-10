@@ -28,6 +28,7 @@ namespace OpenSim.Addons.SqlDataBackup
 		private readonly string m_connectionString;
 		private readonly string m_commandPrefix;
 		private readonly string m_backupFolder;
+		private readonly object m_tableProcessingLock = new object();
 		private int m_bulkOperationRunning;
 
 		public SqlDataBackup(IConfigSource config, IHttpServer server, string configName)
@@ -44,7 +45,7 @@ namespace OpenSim.Addons.SqlDataBackup
 			IConfig dbConfig = config.Configs["DatabaseService"];
 			m_connectionString = moduleConfig.GetString("ConnectionString", dbConfig != null ? dbConfig.GetString("ConnectionString", string.Empty) : string.Empty);
 			m_commandPrefix = moduleConfig.GetString("CommandPrefix", "sqlbackup").Trim();
-			m_backupFolder = moduleConfig.GetString("BackupFolder", "sqlbackup");
+			m_backupFolder = moduleConfig.GetString("BackupFolder", "backupOTB");
 
 			if (string.IsNullOrWhiteSpace(m_connectionString))
 			{
@@ -120,7 +121,7 @@ namespace OpenSim.Addons.SqlDataBackup
 		{
 			if (cmd.Length < 4)
 			{
-				MainConsole.Instance.Output("Syntax: {0} export <table|all> <datei.otb|ordner>", m_commandPrefix);
+				ShowUsage();
 				return;
 			}
 
@@ -141,7 +142,7 @@ namespace OpenSim.Addons.SqlDataBackup
 		{
 			if (cmd.Length < 4)
 			{
-				MainConsole.Instance.Output("Syntax: {0} import <table|all> <datei.otb|ordner>", m_commandPrefix);
+				ShowUsage();
 				return;
 			}
 
@@ -183,6 +184,7 @@ namespace OpenSim.Addons.SqlDataBackup
 				try
 				{
 					string filePath = Path.Combine(folderPath, table + "_" + batchTimestamp + OtbExtension);
+					MainConsole.Instance.Output("Sichere Tabelle: {0} -> {1}", table, filePath);
 					ExportTable(table, filePath, false);
 					done++;
 				}
@@ -221,6 +223,7 @@ namespace OpenSim.Addons.SqlDataBackup
 
 				try
 				{
+					MainConsole.Instance.Output("Importiere Tabelle: {0} <- {1}", table, file);
 					ImportTable(table, file, false);
 					done++;
 				}
@@ -274,43 +277,49 @@ namespace OpenSim.Addons.SqlDataBackup
 
 		private void ExportTable(string tableName, string filePath, bool verbose)
 		{
-			EnsureSafeTableName(tableName);
-			filePath = EnsureOtbPath(filePath);
+			lock (m_tableProcessingLock)
+			{
+				EnsureSafeTableName(tableName);
+				filePath = EnsureOtbPath(filePath);
 
-			string scriptText = BuildTableDumpScript(tableName, out int rowCount);
+				string scriptText = BuildTableDumpScript(tableName, out int rowCount);
 
-			string directory = Path.GetDirectoryName(Path.GetFullPath(filePath));
-			if (!string.IsNullOrWhiteSpace(directory))
-				Directory.CreateDirectory(directory);
+				string directory = Path.GetDirectoryName(Path.GetFullPath(filePath));
+				if (!string.IsNullOrWhiteSpace(directory))
+					Directory.CreateDirectory(directory);
 
-			WriteOtbArchive(filePath, tableName, scriptText);
+				WriteOtbArchive(filePath, tableName, scriptText);
 
-			if (verbose)
-				MainConsole.Instance.Output("Exportiert: {0} ({1} Zeilen) -> {2}", tableName, rowCount, filePath);
+				if (verbose)
+					MainConsole.Instance.Output("Exportiert: {0} ({1} Zeilen) -> {2}", tableName, rowCount, filePath);
+			}
 		}
 
 		private void ImportTable(string tableName, string filePath, bool verbose)
 		{
-			EnsureSafeTableName(tableName);
-			filePath = EnsureOtbPath(filePath);
-
-			if (!File.Exists(filePath))
-				throw new FileNotFoundException("Backup-Datei nicht gefunden", filePath);
-
-			string scriptText = ReadOtbArchive(filePath, tableName);
-			if (string.IsNullOrWhiteSpace(scriptText))
-				throw new InvalidOperationException("Backup-Datei ist leer: " + filePath);
-
-			using (MySqlConnection conn = new MySqlConnection(m_connectionString))
+			lock (m_tableProcessingLock)
 			{
-				conn.Open();
+				EnsureSafeTableName(tableName);
+				filePath = EnsureOtbPath(filePath);
 
-				MySqlScript script = new MySqlScript(conn, scriptText);
-				script.Execute();
+				if (!File.Exists(filePath))
+					throw new FileNotFoundException("Backup-Datei nicht gefunden", filePath);
+
+				string scriptText = ReadOtbArchive(filePath, tableName);
+				if (string.IsNullOrWhiteSpace(scriptText))
+					throw new InvalidOperationException("Backup-Datei ist leer: " + filePath);
+
+				using (MySqlConnection conn = new MySqlConnection(m_connectionString))
+				{
+					conn.Open();
+
+					MySqlScript script = new MySqlScript(conn, scriptText);
+					script.Execute();
+				}
+
+				if (verbose)
+					MainConsole.Instance.Output("Importiert: {0} <- {1}", tableName, filePath);
 			}
-
-			if (verbose)
-				MainConsole.Instance.Output("Importiert: {0} <- {1}", tableName, filePath);
 		}
 
 		private string BuildTableDumpScript(string tableName, out int rowCount)
@@ -526,11 +535,11 @@ namespace OpenSim.Addons.SqlDataBackup
 
 		private void ShowUsage()
 		{
-			MainConsole.Instance.Output("{0} list", m_commandPrefix);
-			MainConsole.Instance.Output("{0} export <table> <datei.otb>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} export all <ordner>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} import <table> <datei.otb>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} import all <ordner>", m_commandPrefix);
+			MainConsole.Instance.Output("sqlbackup list");
+			MainConsole.Instance.Output("sqlbackup export <table> <datei.otb>");
+			MainConsole.Instance.Output("sqlbackup export all <ordner>");
+			MainConsole.Instance.Output("sqlbackup import <table> <datei.otb>");
+			MainConsole.Instance.Output("sqlbackup import all <ordner>");
 		}
 	}
 }
