@@ -320,11 +320,11 @@ namespace OpenSim.Addons.SqlDataBackup
 				long approxBytes = GetApproxTableSizeBytes(tableName);
 				if (m_maxSingleTableExportBytes > 0 && approxBytes > m_maxSingleTableExportBytes)
 				{
-					throw new InvalidOperationException(
-						"Tabelle zu gross fuer OTB-Export in diesem Modus: " + tableName
-						+ " (ca. " + approxBytes.ToString(CultureInfo.InvariantCulture)
-						+ " Bytes, Limit " + m_maxSingleTableExportBytes.ToString(CultureInfo.InvariantCulture)
-						+ "). Bitte Tabelle aufteilen oder extern dumpen.");
+					m_log.InfoFormat(
+						"[SQL DATA BACKUP]: Tabelle {0} ist groesser als MaxSingleTableExportBytes ({1} > {2}), Split-Export laeuft normal weiter.",
+						tableName,
+						approxBytes,
+						m_maxSingleTableExportBytes);
 				}
 
 				string directory = Path.GetDirectoryName(Path.GetFullPath(filePath));
@@ -453,6 +453,7 @@ namespace OpenSim.Addons.SqlDataBackup
 							{
 								splitMode = true;
 								FinalizePartWrite(filePath, basePath, tableName, currentPart, footer, ++partCount, splitMode);
+								MainConsole.Instance.Output("Split {0} geschrieben: {1}", partCount, BuildSplitPartPath(basePath, partCount));
 								currentPart = new StringBuilder(nextHeader.Length + footer.Length + 1024);
 								currentPart.Append(nextHeader);
 								currentBytes = enc.GetByteCount(nextHeader);
@@ -479,7 +480,14 @@ namespace OpenSim.Addons.SqlDataBackup
 			else
 			{
 				FinalizePartWrite(filePath, basePath, tableName, currentPart, footer, ++partCount, splitMode);
+				if (splitMode)
+					MainConsole.Instance.Output("Split {0} geschrieben: {1}", partCount, BuildSplitPartPath(basePath, partCount));
 			}
+		}
+
+		private static string BuildSplitPartPath(string basePath, int partNumber)
+		{
+			return basePath + ".part" + partNumber.ToString("D4", CultureInfo.InvariantCulture) + OtbExtension;
 		}
 
 		private void ExecuteScriptLenient(MySqlConnection conn, string tableName, string filePath, string scriptText, out int executedStatements, out int failedStatements)
