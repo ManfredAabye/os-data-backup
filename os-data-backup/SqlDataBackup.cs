@@ -69,6 +69,7 @@ namespace OpenSim.Addons.SqlDataBackup
 		private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 		private static readonly Regex s_safeTableNameRegex = new Regex("^[A-Za-z0-9_]+$", RegexOptions.Compiled);
 		private static readonly Regex s_autoIncrementRegex = new Regex("AUTO_INCREMENT=\\d+", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+		private const string ModuleVersion = "1.0.0 Alpha";
 		private const string OtbExtension = ".otb";
 		private const long DefaultMaxSingleTableExportBytes = 0;
 		private const long DefaultMaxOtbPartBytes = 2048L * 1024L * 1024L;
@@ -126,13 +127,14 @@ namespace OpenSim.Addons.SqlDataBackup
 			RegisterCommands();
 
 			m_log.InfoFormat(
-				"[SQL DATA BACKUP]: Enabled. Command prefix '{0}', BackupFolder='{1}', TargetConnectionString={2}, DefaultConflictMode={3}, MaxSingleTableExportBytes={4}, MaxOtbPartBytes={5}.",
+				"[SQL DATA BACKUP] v{6}: Enabled. Command prefix '{0}', BackupFolder='{1}', TargetConnectionString={2}, DefaultConflictMode={3}, MaxSingleTableExportBytes={4}, MaxOtbPartBytes={5}.",
 				m_commandPrefix,
 				m_backupFolder,
 				string.IsNullOrWhiteSpace(m_targetConnectionString) ? "no" : "yes",
 				m_defaultConflictMode,
 				m_maxSingleTableExportBytes,
-				m_maxOtbPartBytes);
+				m_maxOtbPartBytes,
+				ModuleVersion);
 		}
 
 		private void RegisterCommands()
@@ -1948,6 +1950,7 @@ namespace OpenSim.Addons.SqlDataBackup
 
 		private void ShowUsage()
 		{
+			MainConsole.Instance.Output("SqlDataBackup version {0}", ModuleVersion);
 			MainConsole.Instance.Output("{0} help", m_commandPrefix);
 			MainConsole.Instance.Output("  {0} list", m_commandPrefix);
 			MainConsole.Instance.Output("  {0} export <table> [file.otb|url|folder]", m_commandPrefix);
