@@ -16,12 +16,11 @@ Format pro Tabelle:
 - Tabellen auflisten (`list`)
 - Einzelne Tabelle exportieren (`export <table>` oder `export <table> <datei.otb|url>`)
 - Alle Tabellen exportieren (`export all <ordner|url>`)
-- Einzelne Tabelle importieren (`import <table> <datei.otb|url> [modus]`)
-- Alle Tabellen importieren (`import all <ordner|url> [modus]`)
-- Tabellen direkt in eine zweite MySQL-Datenbank kopieren (`copy <table|all> [modus]`)
+- Tabellen importieren (`import <modus> <table|all> <datei.otb|ordner|url>`)
+- Tabellen direkt in eine zweite MySQL-Datenbank kopieren (`copy <modus> <table|all>`)
 - Quell- und Ziel-Datenbank vergleichen (`compare <table|all>`)
-- Quell- und/oder Zieltabellen mit `CHECK TABLE` pruefen (`check <table|all> [source|target|both]`)
-- Quell- und Zieltabellen reparieren/synchronisieren (`repair <table|all> [modus]`)
+- Quell- und/oder Zieltabellen mit `CHECK TABLE` pruefen (`check <source|target|both> <table|all>`)
+- Quell- und Zieltabellen reparieren/synchronisieren (`repair <modus> <table|all>`)
 - Lokales Dateisystem und WebDAV-basierte externe Server/Cloud-Speicher als Backup-Ziel/-Quelle
 
 ## Einbindung in Robust
@@ -65,12 +64,25 @@ sqlbackup list
 sqlbackup export <table>
 sqlbackup export <table> <datei.otb|url>
 sqlbackup export all <ordner|url>
-sqlbackup import <table> <datei.otb|url> [replace|skip|error|merge-replace|merge-skip]
-sqlbackup import all <ordner|url> [replace|skip|error|merge-replace|merge-skip]
-sqlbackup copy <table|all> [replace|skip|error|merge-replace|merge-skip]
+sqlbackup import replace <table|all> <datei.otb|ordner|url>
+sqlbackup import skip <table|all> <datei.otb|ordner|url>
+sqlbackup import error <table|all> <datei.otb|ordner|url>
+sqlbackup import merge-replace <table|all> <datei.otb|ordner|url>
+sqlbackup import merge-skip <table|all> <datei.otb|ordner|url>
+sqlbackup copy replace <table|all>
+sqlbackup copy skip <table|all>
+sqlbackup copy error <table|all>
+sqlbackup copy merge-replace <table|all>
+sqlbackup copy merge-skip <table|all>
 sqlbackup compare <table|all>
-sqlbackup check <table|all> [source|target|both]
-sqlbackup repair <table|all> [replace|skip|error|merge-replace|merge-skip]
+sqlbackup check source <table|all>
+sqlbackup check target <table|all>
+sqlbackup check both <table|all>
+sqlbackup repair replace <table|all>
+sqlbackup repair skip <table|all>
+sqlbackup repair error <table|all>
+sqlbackup repair merge-replace <table|all>
+sqlbackup repair merge-skip <table|all>
 ```
 
 ## Konfliktmodi
@@ -110,13 +122,13 @@ sqlbackup export users
 sqlbackup export users backups/users.otb
 sqlbackup export all https://backup.example.org/remote.php/dav/files/admin/opensim/
 sqlbackup export all backups
-sqlbackup import users backups/users.otb replace
-sqlbackup import all https://backup.example.org/remote.php/dav/files/admin/opensim/ merge-skip
-sqlbackup copy users replace
+sqlbackup import replace users backups/users.otb
+sqlbackup import merge-skip all https://backup.example.org/remote.php/dav/files/admin/opensim/
+sqlbackup copy replace users
 sqlbackup compare all
-sqlbackup check all both
-sqlbackup repair users replace
-sqlbackup import all backups
+sqlbackup check both all
+sqlbackup repair replace users
+sqlbackup import replace all backups
 ```
 
 ## Sicherheit und Verhalten
