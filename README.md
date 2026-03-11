@@ -162,4 +162,3 @@ RemotePassword = "secret"
 RemoteTimeoutSeconds = 300
 DefaultConflictMode = "merge-skip"
 ```
-
