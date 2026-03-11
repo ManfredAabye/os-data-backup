@@ -74,6 +74,32 @@ namespace OpenSim.Addons.SqlDataBackup
 		private const long DefaultMaxSingleTableExportBytes = 0;
 		private const long DefaultMaxOtbPartBytes = 2048L * 1024L * 1024L;
 		private const int DefaultRemoteTimeoutSeconds = 120;
+		private static readonly string[] s_helpTextLines = new string[]
+		{
+			"sqlbackup list",
+			"sqlbackup export <table>",
+			"sqlbackup export <table> <datei.otb|url>",
+			"sqlbackup export all <ordner|url>",
+			"sqlbackup import replace <table|all> <datei.otb|ordner|url>",
+			"sqlbackup import skip <table|all> <datei.otb|ordner|url>",
+			"sqlbackup import error <table|all> <datei.otb|ordner|url>",
+			"sqlbackup import merge-replace <table|all> <datei.otb|ordner|url>",
+			"sqlbackup import merge-skip <table|all> <datei.otb|ordner|url>",
+			"sqlbackup copy replace <table|all>",
+			"sqlbackup copy skip <table|all>",
+			"sqlbackup copy error <table|all>",
+			"sqlbackup copy merge-replace <table|all>",
+			"sqlbackup copy merge-skip <table|all>",
+			"sqlbackup compare <table|all>",
+			"sqlbackup check source <table|all>",
+			"sqlbackup check target <table|all>",
+			"sqlbackup check both <table|all>",
+			"sqlbackup repair replace <table|all>",
+			"sqlbackup repair skip <table|all>",
+			"sqlbackup repair error <table|all>",
+			"sqlbackup repair merge-replace <table|all>",
+			"sqlbackup repair merge-skip <table|all>"
+		};
 
 		private readonly bool m_enabled;
 		private readonly string m_connectionString;
@@ -146,166 +172,39 @@ namespace OpenSim.Addons.SqlDataBackup
 				string.Empty,
 				HandleCommand);
 
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " list",
-				m_commandPrefix + " list",
-				string.Empty,
-				HandleCommand);
+			for (int i = 0; i < s_helpTextLines.Length; i++)
+				RegisterCommandFromHelpLine(s_helpTextLines[i]);
+		}
 
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " export",
-				m_commandPrefix + " export <table>",
-				string.Empty,
-				HandleCommand);
+		private void RegisterCommandFromHelpLine(string helpLine)
+		{
+			if (string.IsNullOrWhiteSpace(helpLine))
+				return;
 
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " export",
-				m_commandPrefix + " export <table> <datei.otb|url>",
-				string.Empty,
-				HandleCommand);
+			string runtimeCommand = helpLine;
+			const string staticPrefix = "sqlbackup ";
+			if (!string.Equals(m_commandPrefix, "sqlbackup", StringComparison.OrdinalIgnoreCase) &&
+				runtimeCommand.StartsWith(staticPrefix, StringComparison.OrdinalIgnoreCase))
+			{
+				runtimeCommand = m_commandPrefix + " " + runtimeCommand.Substring(staticPrefix.Length);
+			}
 
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " export",
-				m_commandPrefix + " export all <ordner|url>",
-				string.Empty,
-				HandleCommand);
+			string[] parts = runtimeCommand.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+			if (parts.Length < 2)
+				return;
 
+			string baseCommand = parts[0] + " " + parts[1];
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
-				m_commandPrefix + " import",
-				m_commandPrefix + " import replace <table|all> <datei.otb|ordner|url>",
+				baseCommand,
+				runtimeCommand,
 				string.Empty,
 				HandleCommand);
-
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " import",
-				m_commandPrefix + " import skip <table|all> <datei.otb|ordner|url>",
-				string.Empty,
-				HandleCommand);
-
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " import",
-				m_commandPrefix + " import error <table|all> <datei.otb|ordner|url>",
-				string.Empty,
-				HandleCommand);
-
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " import",
-				m_commandPrefix + " import merge-replace <table|all> <datei.otb|ordner|url>",
-				string.Empty,
-				HandleCommand);
-
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " import",
-				m_commandPrefix + " import merge-skip <table|all> <datei.otb|ordner|url>",
-				string.Empty,
-				HandleCommand);
-
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " copy",
-				m_commandPrefix + " copy replace <table|all>",
-				string.Empty,
-				HandleCommand);
-
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " copy",
-				m_commandPrefix + " copy skip <table|all>",
-				string.Empty,
-				HandleCommand);
-
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " copy",
-				m_commandPrefix + " copy error <table|all>",
-				string.Empty,
-				HandleCommand);
-
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " copy",
-				m_commandPrefix + " copy merge-replace <table|all>",
-				string.Empty,
-				HandleCommand);
-
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " copy",
-				m_commandPrefix + " copy merge-skip <table|all>",
-				string.Empty,
-				HandleCommand);
-
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " compare",
-				m_commandPrefix + " compare <table|all>",
-				string.Empty,
-				HandleCommand);
-
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " check",
-				m_commandPrefix + " check source <table|all>",
-				string.Empty,
-				HandleCommand);
-
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " check",
-				m_commandPrefix + " check target <table|all>",
-				string.Empty,
-				HandleCommand);
-
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " check",
-				m_commandPrefix + " check both <table|all>",
-				string.Empty,
-				HandleCommand);
-
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " repair",
-				m_commandPrefix + " repair replace <table|all>",
-				string.Empty,
-				HandleCommand);
-
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " repair",
-				m_commandPrefix + " repair skip <table|all>",
-				string.Empty,
-				HandleCommand);
-
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " repair",
-				m_commandPrefix + " repair error <table|all>",
-				string.Empty,
-				HandleCommand);
-
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " repair",
-				m_commandPrefix + " repair merge-replace <table|all>",
-				string.Empty,
-				HandleCommand);
-
-			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
-				m_commandPrefix + " repair",
-				m_commandPrefix + " repair merge-skip <table|all>",
-				string.Empty,
-				HandleCommand);
+		}
+		private void helptxt()
+		{
+			for (int i = 0; i < s_helpTextLines.Length; i++)
+				MainConsole.Instance.Output(s_helpTextLines[i]);
 		}
 
 		private static long ReadMaxSingleTableExportBytes(IConfig moduleConfig)
@@ -474,6 +373,17 @@ namespace OpenSim.Addons.SqlDataBackup
 			ExportTable(scope, targetPath, true);
 		}
 
+		private InvalidOperationException BuildSyntaxException(string action, string syntaxTail)
+		{
+			return new InvalidOperationException(
+				string.Format(
+					CultureInfo.InvariantCulture,
+					"{0} syntax: {1} {2}",
+					action,
+					m_commandPrefix,
+					syntaxTail));
+		}
+
 		private void HandleImport(string[] cmd)
 		{
 			if (cmd.Length < 5)
@@ -483,7 +393,7 @@ namespace OpenSim.Addons.SqlDataBackup
 			}
 
 			if (!IsConflictModeToken(cmd[2]))
-				throw new InvalidOperationException("Import syntax: sqlbackup import <replace|skip|error|merge-replace|merge-skip> <table|all> <datei.otb|ordner|url>");
+				throw BuildSyntaxException("Import", "import <replace|skip|error|merge-replace|merge-skip> <table|all> <datei.otb|ordner|url>");
 
 			ConflictMode conflictMode = ReadConflictMode(cmd[2], m_defaultConflictMode);
 			string scope = cmd[3];
@@ -510,7 +420,7 @@ namespace OpenSim.Addons.SqlDataBackup
 			}
 
 			if (!IsConflictModeToken(cmd[2]))
-				throw new InvalidOperationException("Copy syntax: sqlbackup copy <replace|skip|error|merge-replace|merge-skip> <table|all>");
+				throw BuildSyntaxException("Copy", "copy <replace|skip|error|merge-replace|merge-skip> <table|all>");
 
 			ConflictMode conflictMode = ReadConflictMode(cmd[2], m_defaultConflictMode);
 			string scope = cmd[3];
@@ -561,7 +471,7 @@ namespace OpenSim.Addons.SqlDataBackup
 				!cmd[2].Equals("target", StringComparison.OrdinalIgnoreCase) &&
 				!cmd[2].Equals("both", StringComparison.OrdinalIgnoreCase))
 			{
-				throw new InvalidOperationException("Check syntax: sqlbackup check <source|target|both> <table|all>");
+				throw BuildSyntaxException("Check", "check <source|target|both> <table|all>");
 			}
 
 			if ((checkScope == CheckScope.Target || checkScope == CheckScope.Both) && string.IsNullOrWhiteSpace(m_targetConnectionString))
@@ -588,7 +498,7 @@ namespace OpenSim.Addons.SqlDataBackup
 			}
 
 			if (!IsConflictModeToken(cmd[2]))
-				throw new InvalidOperationException("Repair syntax: sqlbackup repair <replace|skip|error|merge-replace|merge-skip> <table|all>");
+				throw BuildSyntaxException("Repair", "repair <replace|skip|error|merge-replace|merge-skip> <table|all>");
 
 			ConflictMode conflictMode = ReadConflictMode(cmd[2], m_defaultConflictMode);
 			string scope = cmd[3];
@@ -2096,29 +2006,7 @@ namespace OpenSim.Addons.SqlDataBackup
 
 		private void ShowUsage()
 		{
-			MainConsole.Instance.Output("{0} list", m_commandPrefix);
-			MainConsole.Instance.Output("{0} export <table>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} export <table> <datei.otb|url>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} export all <ordner|url>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} import replace <table|all> <datei.otb|ordner|url>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} import skip <table|all> <datei.otb|ordner|url>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} import error <table|all> <datei.otb|ordner|url>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} import merge-replace <table|all> <datei.otb|ordner|url>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} import merge-skip <table|all> <datei.otb|ordner|url>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} copy replace <table|all>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} copy skip <table|all>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} copy error <table|all>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} copy merge-replace <table|all>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} copy merge-skip <table|all>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} compare <table|all>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} check source <table|all>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} check target <table|all>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} check both <table|all>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} repair replace <table|all>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} repair skip <table|all>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} repair error <table|all>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} repair merge-replace <table|all>", m_commandPrefix);
-			MainConsole.Instance.Output("{0} repair merge-skip <table|all>", m_commandPrefix);
+			helptxt();
 		}
 	}
 }
