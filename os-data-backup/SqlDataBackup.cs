@@ -1564,7 +1564,7 @@ namespace OpenSim.Addons.SqlDataBackup
 			}
 		}
 
-		private static string BuildSplitBasePath(string filePath)
+		private string BuildSplitBasePath(string filePath)
 		{
 			string parent = GetParentStoragePath(filePath);
 			string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(GetStorageFileName(filePath));
