@@ -165,39 +165,23 @@ namespace OpenSim.Addons.SqlDataBackup
 
 		private void RegisterCommands()
 		{
-			MainConsole.Instance.Commands.AddCommand(
-				"BackupHidden", false,
-				m_commandPrefix + " help",
-				m_commandPrefix + " help",
-				string.Empty,
-				HandleCommand);
-
-			for (int i = 0; i < s_helpTextLines.Length; i++)
-				RegisterCommandFromHelpLine(s_helpTextLines[i]);
+			RegisterExecutableCommand("help");
+			RegisterExecutableCommand("list");
+			RegisterExecutableCommand("export");
+			RegisterExecutableCommand("import");
+			RegisterExecutableCommand("copy");
+			RegisterExecutableCommand("compare");
+			RegisterExecutableCommand("check");
+			RegisterExecutableCommand("repair");
 		}
 
-		private void RegisterCommandFromHelpLine(string helpLine)
+		private void RegisterExecutableCommand(string commandSuffix)
 		{
-			if (string.IsNullOrWhiteSpace(helpLine))
-				return;
-
-			string runtimeCommand = helpLine;
-			const string staticPrefix = "sqlbackup ";
-			if (!string.Equals(m_commandPrefix, "sqlbackup", StringComparison.OrdinalIgnoreCase) &&
-				runtimeCommand.StartsWith(staticPrefix, StringComparison.OrdinalIgnoreCase))
-			{
-				runtimeCommand = m_commandPrefix + " " + runtimeCommand.Substring(staticPrefix.Length);
-			}
-
-			string[] parts = runtimeCommand.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-			if (parts.Length < 2)
-				return;
-
-			string baseCommand = parts[0] + " " + parts[1];
+			string fullCommand = m_commandPrefix + " " + commandSuffix;
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
-				baseCommand,
-				runtimeCommand,
+				fullCommand,
+				fullCommand,
 				string.Empty,
 				HandleCommand);
 		}
