@@ -140,59 +140,171 @@ namespace OpenSim.Addons.SqlDataBackup
 		private void RegisterCommands()
 		{
 			MainConsole.Instance.Commands.AddCommand(
-				"Backup", false,
+				"BackupHidden", false,
 				m_commandPrefix + " help",
 				m_commandPrefix + " help",
-				"Shows compact SQL backup help.",
+				string.Empty,
 				HandleCommand);
 
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
 				m_commandPrefix + " list",
 				m_commandPrefix + " list",
-				"Lists all tables in the source database.",
+				string.Empty,
 				HandleCommand);
 
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
 				m_commandPrefix + " export",
-				m_commandPrefix + " export <table|all> ...",
-				"Export: sqlbackup export <table|all> <datei.otb|ordner|url>.",
+				m_commandPrefix + " export <table>",
+				string.Empty,
+				HandleCommand);
+
+			MainConsole.Instance.Commands.AddCommand(
+				"Backup", false,
+				m_commandPrefix + " export",
+				m_commandPrefix + " export <table> <datei.otb|url>",
+				string.Empty,
+				HandleCommand);
+
+			MainConsole.Instance.Commands.AddCommand(
+				"Backup", false,
+				m_commandPrefix + " export",
+				m_commandPrefix + " export all <ordner|url>",
+				string.Empty,
 				HandleCommand);
 
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
 				m_commandPrefix + " import",
-				m_commandPrefix + " import <mode> <table|all> ...",
-				"Import: sqlbackup import <replace|skip|error|merge-replace|merge-skip> <table|all> <datei.otb|ordner|url>.",
+				m_commandPrefix + " import replace <table|all> <datei.otb|ordner|url>",
+				string.Empty,
+				HandleCommand);
+
+			MainConsole.Instance.Commands.AddCommand(
+				"Backup", false,
+				m_commandPrefix + " import",
+				m_commandPrefix + " import skip <table|all> <datei.otb|ordner|url>",
+				string.Empty,
+				HandleCommand);
+
+			MainConsole.Instance.Commands.AddCommand(
+				"Backup", false,
+				m_commandPrefix + " import",
+				m_commandPrefix + " import error <table|all> <datei.otb|ordner|url>",
+				string.Empty,
+				HandleCommand);
+
+			MainConsole.Instance.Commands.AddCommand(
+				"Backup", false,
+				m_commandPrefix + " import",
+				m_commandPrefix + " import merge-replace <table|all> <datei.otb|ordner|url>",
+				string.Empty,
+				HandleCommand);
+
+			MainConsole.Instance.Commands.AddCommand(
+				"Backup", false,
+				m_commandPrefix + " import",
+				m_commandPrefix + " import merge-skip <table|all> <datei.otb|ordner|url>",
+				string.Empty,
 				HandleCommand);
 
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
 				m_commandPrefix + " copy",
-				m_commandPrefix + " copy <mode> <table|all>",
-				"Copy: sqlbackup copy <replace|skip|error|merge-replace|merge-skip> <table|all>.",
+				m_commandPrefix + " copy replace <table|all>",
+				string.Empty,
+				HandleCommand);
+
+			MainConsole.Instance.Commands.AddCommand(
+				"Backup", false,
+				m_commandPrefix + " copy",
+				m_commandPrefix + " copy skip <table|all>",
+				string.Empty,
+				HandleCommand);
+
+			MainConsole.Instance.Commands.AddCommand(
+				"Backup", false,
+				m_commandPrefix + " copy",
+				m_commandPrefix + " copy error <table|all>",
+				string.Empty,
+				HandleCommand);
+
+			MainConsole.Instance.Commands.AddCommand(
+				"Backup", false,
+				m_commandPrefix + " copy",
+				m_commandPrefix + " copy merge-replace <table|all>",
+				string.Empty,
+				HandleCommand);
+
+			MainConsole.Instance.Commands.AddCommand(
+				"Backup", false,
+				m_commandPrefix + " copy",
+				m_commandPrefix + " copy merge-skip <table|all>",
+				string.Empty,
 				HandleCommand);
 
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
 				m_commandPrefix + " compare",
-				m_commandPrefix + " compare ...",
-				"Compares tables between source and target databases.",
+				m_commandPrefix + " compare <table|all>",
+				string.Empty,
 				HandleCommand);
 
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
 				m_commandPrefix + " check",
-				m_commandPrefix + " check <scope> <table|all>",
-				"Check: sqlbackup check <source|target|both> <table|all>.",
+				m_commandPrefix + " check source <table|all>",
+				string.Empty,
+				HandleCommand);
+
+			MainConsole.Instance.Commands.AddCommand(
+				"Backup", false,
+				m_commandPrefix + " check",
+				m_commandPrefix + " check target <table|all>",
+				string.Empty,
+				HandleCommand);
+
+			MainConsole.Instance.Commands.AddCommand(
+				"Backup", false,
+				m_commandPrefix + " check",
+				m_commandPrefix + " check both <table|all>",
+				string.Empty,
 				HandleCommand);
 
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
 				m_commandPrefix + " repair",
-				m_commandPrefix + " repair <mode> <table|all>",
-				"Repair: sqlbackup repair <replace|skip|error|merge-replace|merge-skip> <table|all>.",
+				m_commandPrefix + " repair replace <table|all>",
+				string.Empty,
+				HandleCommand);
+
+			MainConsole.Instance.Commands.AddCommand(
+				"Backup", false,
+				m_commandPrefix + " repair",
+				m_commandPrefix + " repair skip <table|all>",
+				string.Empty,
+				HandleCommand);
+
+			MainConsole.Instance.Commands.AddCommand(
+				"Backup", false,
+				m_commandPrefix + " repair",
+				m_commandPrefix + " repair error <table|all>",
+				string.Empty,
+				HandleCommand);
+
+			MainConsole.Instance.Commands.AddCommand(
+				"Backup", false,
+				m_commandPrefix + " repair",
+				m_commandPrefix + " repair merge-replace <table|all>",
+				string.Empty,
+				HandleCommand);
+
+			MainConsole.Instance.Commands.AddCommand(
+				"Backup", false,
+				m_commandPrefix + " repair",
+				m_commandPrefix + " repair merge-skip <table|all>",
+				string.Empty,
 				HandleCommand);
 		}
 
