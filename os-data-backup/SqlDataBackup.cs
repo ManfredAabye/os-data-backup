@@ -156,22 +156,22 @@ namespace OpenSim.Addons.SqlDataBackup
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
 				m_commandPrefix + " export",
-				m_commandPrefix + " export ...",
-				"Export: one table or all tables to .otb.",
+				m_commandPrefix + " export <table|all> ...",
+				"Export: sqlbackup export <table|all> <datei.otb|ordner|url>.",
 				HandleCommand);
 
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
 				m_commandPrefix + " import",
-				m_commandPrefix + " import ...",
-				"Import: .otb into target DB, optional conflict mode.",
+				m_commandPrefix + " import <mode> <table|all> ...",
+				"Import: sqlbackup import <replace|skip|error|merge-replace|merge-skip> <table|all> <datei.otb|ordner|url>.",
 				HandleCommand);
 
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
 				m_commandPrefix + " copy",
-				m_commandPrefix + " copy ...",
-				"Copies tables directly from source DB to target DB.",
+				m_commandPrefix + " copy <mode> <table|all>",
+				"Copy: sqlbackup copy <replace|skip|error|merge-replace|merge-skip> <table|all>.",
 				HandleCommand);
 
 			MainConsole.Instance.Commands.AddCommand(
@@ -184,15 +184,15 @@ namespace OpenSim.Addons.SqlDataBackup
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
 				m_commandPrefix + " check",
-				m_commandPrefix + " check ...",
-				"Runs CHECK TABLE on source and/or target.",
+				m_commandPrefix + " check <scope> <table|all>",
+				"Check: sqlbackup check <source|target|both> <table|all>.",
 				HandleCommand);
 
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
 				m_commandPrefix + " repair",
-				m_commandPrefix + " repair ...",
-				"Runs REPAIR TABLE and syncs differences if needed.",
+				m_commandPrefix + " repair <mode> <table|all>",
+				"Repair: sqlbackup repair <replace|skip|error|merge-replace|merge-skip> <table|all>.",
 				HandleCommand);
 		}
 
