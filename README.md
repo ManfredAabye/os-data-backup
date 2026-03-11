@@ -1,4 +1,4 @@
-# os-data-backup
+# os-data-backup Version 1.0.0 Alpha
 
 Tabellenweises MySQL Backup/Restore/Sync Addon fuer Robust.
 
@@ -162,3 +162,4 @@ RemotePassword = "secret"
 RemoteTimeoutSeconds = 300
 DefaultConflictMode = "merge-skip"
 ```
+
