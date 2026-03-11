@@ -253,6 +253,24 @@ namespace OpenSim.Addons.SqlDataBackup
 			}
 		}
 
+		private static bool IsConflictModeToken(string token)
+		{
+			if (string.IsNullOrWhiteSpace(token))
+				return false;
+
+			switch (token.Trim().ToLowerInvariant())
+			{
+				case "replace":
+				case "skip":
+				case "error":
+				case "merge-replace":
+				case "merge-skip":
+					return true;
+				default:
+					return false;
+			}
+		}
+
 		private static CheckScope ReadCheckScope(string configured)
 		{
 			if (string.IsNullOrWhiteSpace(configured))
@@ -346,15 +364,18 @@ namespace OpenSim.Addons.SqlDataBackup
 
 		private void HandleImport(string[] cmd)
 		{
-			if (cmd.Length < 4)
+			if (cmd.Length < 5)
 			{
 				ShowUsage();
 				return;
 			}
 
-			string scope = cmd[2];
-			string sourcePath = cmd[3];
-			ConflictMode conflictMode = cmd.Length >= 5 ? ReadConflictMode(cmd[4], m_defaultConflictMode) : m_defaultConflictMode;
+			if (!IsConflictModeToken(cmd[2]))
+				throw new InvalidOperationException("Import syntax: sqlbackup import <replace|skip|error|merge-replace|merge-skip> <table|all> <datei.otb|ordner|url>");
+
+			ConflictMode conflictMode = ReadConflictMode(cmd[2], m_defaultConflictMode);
+			string scope = cmd[3];
+			string sourcePath = cmd[4];
 
 			if (scope.Equals("all", StringComparison.OrdinalIgnoreCase))
 			{
@@ -370,14 +391,17 @@ namespace OpenSim.Addons.SqlDataBackup
 		{
 			EnsureTargetConnectionConfigured();
 
-			if (cmd.Length < 3)
+			if (cmd.Length < 4)
 			{
 				ShowUsage();
 				return;
 			}
 
-			string scope = cmd[2];
-			ConflictMode conflictMode = cmd.Length >= 4 ? ReadConflictMode(cmd[3], m_defaultConflictMode) : m_defaultConflictMode;
+			if (!IsConflictModeToken(cmd[2]))
+				throw new InvalidOperationException("Copy syntax: sqlbackup copy <replace|skip|error|merge-replace|merge-skip> <table|all>");
+
+			ConflictMode conflictMode = ReadConflictMode(cmd[2], m_defaultConflictMode);
+			string scope = cmd[3];
 
 			if (scope.Equals("all", StringComparison.OrdinalIgnoreCase))
 			{
@@ -412,14 +436,21 @@ namespace OpenSim.Addons.SqlDataBackup
 
 		private void HandleCheck(string[] cmd)
 		{
-			if (cmd.Length < 3)
+			if (cmd.Length < 4)
 			{
 				ShowUsage();
 				return;
 			}
 
-			string scope = cmd[2];
-			CheckScope checkScope = cmd.Length >= 4 ? ReadCheckScope(cmd[3]) : CheckScope.Both;
+			CheckScope checkScope = ReadCheckScope(cmd[2]);
+			string scope = cmd[3];
+
+			if (!cmd[2].Equals("source", StringComparison.OrdinalIgnoreCase) &&
+				!cmd[2].Equals("target", StringComparison.OrdinalIgnoreCase) &&
+				!cmd[2].Equals("both", StringComparison.OrdinalIgnoreCase))
+			{
+				throw new InvalidOperationException("Check syntax: sqlbackup check <source|target|both> <table|all>");
+			}
 
 			if ((checkScope == CheckScope.Target || checkScope == CheckScope.Both) && string.IsNullOrWhiteSpace(m_targetConnectionString))
 				throw new InvalidOperationException("TargetConnectionString is required for check target/both.");
@@ -438,14 +469,17 @@ namespace OpenSim.Addons.SqlDataBackup
 		{
 			EnsureTargetConnectionConfigured();
 
-			if (cmd.Length < 3)
+			if (cmd.Length < 4)
 			{
 				ShowUsage();
 				return;
 			}
 
-			string scope = cmd[2];
-			ConflictMode conflictMode = cmd.Length >= 4 ? ReadConflictMode(cmd[3], m_defaultConflictMode) : m_defaultConflictMode;
+			if (!IsConflictModeToken(cmd[2]))
+				throw new InvalidOperationException("Repair syntax: sqlbackup repair <replace|skip|error|merge-replace|merge-skip> <table|all>");
+
+			ConflictMode conflictMode = ReadConflictMode(cmd[2], m_defaultConflictMode);
+			string scope = cmd[3];
 
 			if (scope.Equals("all", StringComparison.OrdinalIgnoreCase))
 			{
@@ -1950,19 +1984,29 @@ namespace OpenSim.Addons.SqlDataBackup
 
 		private void ShowUsage()
 		{
-			MainConsole.Instance.Output("SqlDataBackup version {0}", ModuleVersion);
-			MainConsole.Instance.Output("{0} help", m_commandPrefix);
-			MainConsole.Instance.Output("  {0} list", m_commandPrefix);
-			MainConsole.Instance.Output("  {0} export <table> [file.otb|url|folder]", m_commandPrefix);
-			MainConsole.Instance.Output("  {0} export all [folder|url]", m_commandPrefix);
-			MainConsole.Instance.Output("  {0} import <table> <file.otb|url> [mode]", m_commandPrefix);
-			MainConsole.Instance.Output("  {0} import all <folder|url> [mode]", m_commandPrefix);
-			MainConsole.Instance.Output("  {0} copy <table|all> [mode]", m_commandPrefix);
-			MainConsole.Instance.Output("  {0} compare <table|all>", m_commandPrefix);
-			MainConsole.Instance.Output("  {0} check <table|all> [source|target|both]", m_commandPrefix);
-			MainConsole.Instance.Output("  {0} repair <table|all> [mode]", m_commandPrefix);
-			MainConsole.Instance.Output("  mode: replace | skip | error | merge-replace | merge-skip");
-			MainConsole.Instance.Output("  Tip: 'help Backup' is intentionally short; use '{0} help' for details.", m_commandPrefix);
+			MainConsole.Instance.Output("{0} list", m_commandPrefix);
+			MainConsole.Instance.Output("{0} export <table>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} export <table> <datei.otb|url>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} export all <ordner|url>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} import replace <table|all> <datei.otb|ordner|url>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} import skip <table|all> <datei.otb|ordner|url>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} import error <table|all> <datei.otb|ordner|url>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} import merge-replace <table|all> <datei.otb|ordner|url>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} import merge-skip <table|all> <datei.otb|ordner|url>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} copy replace <table|all>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} copy skip <table|all>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} copy error <table|all>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} copy merge-replace <table|all>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} copy merge-skip <table|all>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} compare <table|all>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} check source <table|all>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} check target <table|all>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} check both <table|all>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} repair replace <table|all>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} repair skip <table|all>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} repair error <table|all>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} repair merge-replace <table|all>", m_commandPrefix);
+			MainConsole.Instance.Output("{0} repair merge-skip <table|all>", m_commandPrefix);
 		}
 	}
 }
