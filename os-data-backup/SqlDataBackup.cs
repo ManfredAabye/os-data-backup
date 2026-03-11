@@ -113,23 +113,23 @@ namespace OpenSim.Addons.SqlDataBackup
 
 			if (string.IsNullOrWhiteSpace(m_connectionString))
 			{
-				m_log.Error("[SQL DATA BACKUP]: ConnectionString fehlt. Addon wird nicht aktiviert.");
+				m_log.Error("[SQL DATA BACKUP]: ConnectionString is missing. Add-on will not be enabled.");
 				return;
 			}
 
 			if (MainConsole.Instance == null)
 			{
-				m_log.Warn("[SQL DATA BACKUP]: MainConsole nicht verfuegbar. Befehle wurden nicht registriert.");
+				m_log.Warn("[SQL DATA BACKUP]: MainConsole is not available. Commands were not registered.");
 				return;
 			}
 
 			RegisterCommands();
 
 			m_log.InfoFormat(
-				"[SQL DATA BACKUP]: Aktiviert. Kommando-Praefix '{0}', BackupFolder='{1}', TargetConnectionString={2}, DefaultConflictMode={3}, MaxSingleTableExportBytes={4}, MaxOtbPartBytes={5}.",
+				"[SQL DATA BACKUP]: Enabled. Command prefix '{0}', BackupFolder='{1}', TargetConnectionString={2}, DefaultConflictMode={3}, MaxSingleTableExportBytes={4}, MaxOtbPartBytes={5}.",
 				m_commandPrefix,
 				m_backupFolder,
-				string.IsNullOrWhiteSpace(m_targetConnectionString) ? "nein" : "ja",
+				string.IsNullOrWhiteSpace(m_targetConnectionString) ? "no" : "yes",
 				m_defaultConflictMode,
 				m_maxSingleTableExportBytes,
 				m_maxOtbPartBytes);
@@ -139,51 +139,58 @@ namespace OpenSim.Addons.SqlDataBackup
 		{
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
+				m_commandPrefix + " help",
+				m_commandPrefix + " help",
+				"Shows compact SQL backup help.",
+				HandleCommand);
+
+			MainConsole.Instance.Commands.AddCommand(
+				"Backup", false,
 				m_commandPrefix + " list",
 				m_commandPrefix + " list",
-				"Listet alle Tabellen der Quell-Datenbank auf.",
+				"Lists all tables in the source database.",
 				HandleCommand);
 
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
 				m_commandPrefix + " export",
-				m_commandPrefix + " export <table|all> <datei.otb|ordner|url>",
-				"Exportiert eine oder alle Tabellen als .otb Archiv, lokal oder per WebDAV.",
+				m_commandPrefix + " export ...",
+				"Export: one table or all tables to .otb.",
 				HandleCommand);
 
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
 				m_commandPrefix + " import",
-				m_commandPrefix + " import <table|all> <datei.otb|ordner|url> [replace|skip|error|merge-replace|merge-skip]",
-				"Importiert eine oder alle Tabellen aus .otb Archiven.",
+				m_commandPrefix + " import ...",
+				"Import: .otb into target DB, optional conflict mode.",
 				HandleCommand);
 
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
 				m_commandPrefix + " copy",
-				m_commandPrefix + " copy <table|all> [replace|skip|error|merge-replace|merge-skip]",
-				"Kopiert Tabellen direkt von der Quell- in die Ziel-Datenbank.",
+				m_commandPrefix + " copy ...",
+				"Copies tables directly from source DB to target DB.",
 				HandleCommand);
 
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
 				m_commandPrefix + " compare",
-				m_commandPrefix + " compare <table|all>",
-				"Vergleicht Tabellen zwischen Quell- und Ziel-Datenbank.",
+				m_commandPrefix + " compare ...",
+				"Compares tables between source and target databases.",
 				HandleCommand);
 
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
 				m_commandPrefix + " check",
-				m_commandPrefix + " check <table|all> [source|target|both]",
-				"Fuehrt CHECK TABLE auf Quelle und/oder Ziel aus.",
+				m_commandPrefix + " check ...",
+				"Runs CHECK TABLE on source and/or target.",
 				HandleCommand);
 
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
 				m_commandPrefix + " repair",
-				m_commandPrefix + " repair <table|all> [replace|skip|error|merge-replace|merge-skip]",
-				"Fuehrt REPAIR TABLE aus und synchronisiert Unterschiede bei Bedarf nach.",
+				m_commandPrefix + " repair ...",
+				"Runs REPAIR TABLE and syncs differences if needed.",
 				HandleCommand);
 		}
 
@@ -273,6 +280,9 @@ namespace OpenSim.Addons.SqlDataBackup
 				string action = cmd[1].ToLowerInvariant();
 				switch (action)
 				{
+					case "help":
+						ShowUsage();
+						break;
 					case "list":
 						ListTables();
 						break;
@@ -301,8 +311,8 @@ namespace OpenSim.Addons.SqlDataBackup
 			}
 			catch (Exception ex)
 			{
-				m_log.Error("[SQL DATA BACKUP]: Fehler im Kommando.", ex);
-				MainConsole.Instance.Output("Fehler: {0}", ex.Message);
+				m_log.Error("[SQL DATA BACKUP]: Command error.", ex);
+				MainConsole.Instance.Output("Error: {0}", ex.Message);
 			}
 		}
 
@@ -410,7 +420,7 @@ namespace OpenSim.Addons.SqlDataBackup
 			CheckScope checkScope = cmd.Length >= 4 ? ReadCheckScope(cmd[3]) : CheckScope.Both;
 
 			if ((checkScope == CheckScope.Target || checkScope == CheckScope.Both) && string.IsNullOrWhiteSpace(m_targetConnectionString))
-				throw new InvalidOperationException("TargetConnectionString fehlt fuer check target/both.");
+				throw new InvalidOperationException("TargetConnectionString is required for check target/both.");
 
 			if (scope.Equals("all", StringComparison.OrdinalIgnoreCase))
 			{
@@ -448,10 +458,10 @@ namespace OpenSim.Addons.SqlDataBackup
 		private void ListTables()
 		{
 			List<string> tables = GetAllTables(m_connectionString);
-			MainConsole.Instance.Output("Quell-Tabellen:");
+			MainConsole.Instance.Output("Source tables:");
 			foreach (string table in tables)
 				MainConsole.Instance.Output(" - " + table);
-			MainConsole.Instance.Output("Gesamt: {0}", tables.Count);
+			MainConsole.Instance.Output("Total: {0}", tables.Count);
 		}
 
 		private void ExportAllTables(string folderPath)
@@ -470,19 +480,19 @@ namespace OpenSim.Addons.SqlDataBackup
 				try
 				{
 					string filePath = CombineStoragePath(folderPath, table + "_" + batchTimestamp + OtbExtension);
-					MainConsole.Instance.Output("Sichere Tabelle: {0} -> {1}", table, filePath);
+					MainConsole.Instance.Output("Backing up table: {0} -> {1}", table, filePath);
 					ExportTable(table, filePath, false);
 					done++;
 				}
 				catch (Exception ex)
 				{
 					failed++;
-					m_log.Error("[SQL DATA BACKUP]: Export fuer Tabelle fehlgeschlagen: " + table, ex);
-					MainConsole.Instance.Output("Fehler bei Export von {0}: {1}", table, ex.Message);
+					m_log.Error("[SQL DATA BACKUP]: Export failed for table: " + table, ex);
+					MainConsole.Instance.Output("Export error for {0}: {1}", table, ex.Message);
 				}
 			}
 
-			MainConsole.Instance.Output("Export abgeschlossen: {0} ok, {1} Fehler, Ziel {2}", done, failed, folderPath);
+			MainConsole.Instance.Output("Export completed: {0} ok, {1} errors, target {2}", done, failed, folderPath);
 		}
 
 		private void ImportAllTables(string folderPath, ConflictMode conflictMode)
@@ -492,7 +502,7 @@ namespace OpenSim.Addons.SqlDataBackup
 
 			List<string> files = ListStorageFiles(folderPath, OtbExtension);
 			if (files.Count == 0)
-				throw new FileNotFoundException("Keine Backup-Dateien gefunden: " + folderPath);
+				throw new FileNotFoundException("No backup files found: " + folderPath);
 
 			files.Sort(StringComparer.OrdinalIgnoreCase);
 
@@ -503,25 +513,25 @@ namespace OpenSim.Addons.SqlDataBackup
 				string table = GetTableNameFromBackupFile(file);
 				if (!IsSafeTableName(table))
 				{
-					MainConsole.Instance.Output("Ueberspringe unsicheren Dateinamen: {0}", file);
+					MainConsole.Instance.Output("Skipping unsafe file name: {0}", file);
 					continue;
 				}
 
 				try
 				{
-					MainConsole.Instance.Output("Importiere Tabelle: {0} <- {1} ({2})", table, file, conflictMode.ToString().ToLowerInvariant());
+					MainConsole.Instance.Output("Importing table: {0} <- {1} ({2})", table, file, conflictMode.ToString().ToLowerInvariant());
 					ImportTable(table, file, false, conflictMode);
 					done++;
 				}
 				catch (Exception ex)
 				{
 					failed++;
-					m_log.Error("[SQL DATA BACKUP]: Import aus Datei fehlgeschlagen: " + file, ex);
-					MainConsole.Instance.Output("Fehler bei Import aus {0}: {1}", file, ex.Message);
+					m_log.Error("[SQL DATA BACKUP]: Import from file failed: " + file, ex);
+					MainConsole.Instance.Output("Import error from {0}: {1}", file, ex.Message);
 				}
 			}
 
-			MainConsole.Instance.Output("Import abgeschlossen: {0} ok, {1} Fehler, Quelle {2}, Modus {3}", done, failed, folderPath, conflictMode.ToString().ToLowerInvariant());
+			MainConsole.Instance.Output("Import completed: {0} ok, {1} errors, source {2}, mode {3}", done, failed, folderPath, conflictMode.ToString().ToLowerInvariant());
 		}
 
 		private void CopyAllTablesToTarget(ConflictMode conflictMode)
@@ -539,12 +549,12 @@ namespace OpenSim.Addons.SqlDataBackup
 				catch (Exception ex)
 				{
 					failed++;
-					m_log.Error("[SQL DATA BACKUP]: Copy fuer Tabelle fehlgeschlagen: " + table, ex);
-					MainConsole.Instance.Output("Fehler bei Copy von {0}: {1}", table, ex.Message);
+					m_log.Error("[SQL DATA BACKUP]: Copy failed for table: " + table, ex);
+					MainConsole.Instance.Output("Copy error for {0}: {1}", table, ex.Message);
 				}
 			}
 
-			MainConsole.Instance.Output("Copy abgeschlossen: {0} ok, {1} Fehler, Modus {2}", done, failed, conflictMode.ToString().ToLowerInvariant());
+			MainConsole.Instance.Output("Copy completed: {0} ok, {1} errors, mode {2}", done, failed, conflictMode.ToString().ToLowerInvariant());
 		}
 
 		private void CompareAllTablesAgainstTarget()
@@ -571,7 +581,7 @@ namespace OpenSim.Addons.SqlDataBackup
 					differing++;
 			}
 
-			MainConsole.Instance.Output("Compare abgeschlossen: {0} identisch, {1} abweichend.", identical, differing);
+			MainConsole.Instance.Output("Compare completed: {0} identical, {1} different.", identical, differing);
 		}
 
 		private void CheckAllTables(CheckScope checkScope)
@@ -619,23 +629,23 @@ namespace OpenSim.Addons.SqlDataBackup
 				catch (Exception ex)
 				{
 					failed++;
-					m_log.Error("[SQL DATA BACKUP]: Repair fuer Tabelle fehlgeschlagen: " + table, ex);
-					MainConsole.Instance.Output("Fehler bei Repair von {0}: {1}", table, ex.Message);
+					m_log.Error("[SQL DATA BACKUP]: Repair failed for table: " + table, ex);
+					MainConsole.Instance.Output("Repair error for {0}: {1}", table, ex.Message);
 				}
 			}
 
-			MainConsole.Instance.Output("Repair abgeschlossen: {0} repariert/synchronisiert, {1} unveraendert, {2} Fehler.", repaired, skipped, failed);
+			MainConsole.Instance.Output("Repair completed: {0} repaired/synced, {1} unchanged, {2} errors.", repaired, skipped, failed);
 		}
 
 		private void RunBulkInBackground(string operationName, Action operation)
 		{
 			if (Interlocked.CompareExchange(ref m_bulkOperationRunning, 1, 0) != 0)
 			{
-				MainConsole.Instance.Output("Es laeuft bereits ein SQL-Backup Bulk-Job. Bitte warten.");
+				MainConsole.Instance.Output("A SQL backup bulk job is already running. Please wait.");
 				return;
 			}
 
-			MainConsole.Instance.Output("Starte {0} im Hintergrund...", operationName);
+			MainConsole.Instance.Output("Starting {0} in background...", operationName);
 			ThreadPool.QueueUserWorkItem(delegate
 			{
 				try
@@ -644,8 +654,8 @@ namespace OpenSim.Addons.SqlDataBackup
 				}
 				catch (Exception ex)
 				{
-					m_log.Error("[SQL DATA BACKUP]: Bulk-Operation fehlgeschlagen.", ex);
-					MainConsole.Instance.Output("Bulk-Operation fehlgeschlagen: {0}", ex.Message);
+					m_log.Error("[SQL DATA BACKUP]: Bulk operation failed.", ex);
+					MainConsole.Instance.Output("Bulk operation failed: {0}", ex.Message);
 				}
 				finally
 				{
@@ -677,7 +687,7 @@ namespace OpenSim.Addons.SqlDataBackup
 				if (m_maxSingleTableExportBytes > 0 && approxBytes > m_maxSingleTableExportBytes)
 				{
 					m_log.InfoFormat(
-						"[SQL DATA BACKUP]: Tabelle {0} ist groesser als MaxSingleTableExportBytes ({1} > {2}), Split-Export laeuft normal weiter.",
+						"[SQL DATA BACKUP]: Table {0} is larger than MaxSingleTableExportBytes ({1} > {2}), split export continues.",
 						tableName,
 						approxBytes,
 						m_maxSingleTableExportBytes);
@@ -690,7 +700,7 @@ namespace OpenSim.Addons.SqlDataBackup
 				if (verbose || partCount > 1)
 				{
 					MainConsole.Instance.Output(
-						"Tabelle gespeichert: {0} ({1} Eintraege, {2} uebersprungen, {3} Teil(e), {4}) -> {5}",
+						"Table saved: {0} ({1} entries, {2} skipped, {3} part(s), {4}) -> {5}",
 						tableName,
 						rowCount,
 						skippedRows,
@@ -709,11 +719,11 @@ namespace OpenSim.Addons.SqlDataBackup
 				filePath = EnsureOtbPath(filePath);
 
 				if (!StorageFileExists(filePath))
-					throw new FileNotFoundException("Backup-Datei nicht gefunden", filePath);
+					throw new FileNotFoundException("Backup file not found", filePath);
 
 				string scriptText = ReadOtbArchive(ReadStorageBytes(filePath), tableName, filePath);
 				if (string.IsNullOrWhiteSpace(scriptText))
-					throw new InvalidOperationException("Backup-Datei ist leer: " + filePath);
+					throw new InvalidOperationException("Backup file is empty: " + filePath);
 
 				using (MySqlConnection conn = new MySqlConnection(m_connectionString))
 				{
@@ -722,7 +732,7 @@ namespace OpenSim.Addons.SqlDataBackup
 					string preparedScript = PrepareScriptForImport(conn, tableName, scriptText, conflictMode, out skippedTable);
 					if (skippedTable)
 					{
-						MainConsole.Instance.Output("Import uebersprungen: {0} existiert bereits, Modus skip <- {1}", tableName, filePath);
+						MainConsole.Instance.Output("Import skipped: {0} already exists, mode skip <- {1}", tableName, filePath);
 						return;
 					}
 
@@ -731,7 +741,7 @@ namespace OpenSim.Addons.SqlDataBackup
 					if (failedStatements > 0)
 					{
 						MainConsole.Instance.Output(
-							"Import mit Fehlern fortgesetzt: {0} ({1} Statements ok, {2} uebersprungen, Modus {3}) <- {4}",
+							"Import continued with errors: {0} ({1} statements ok, {2} skipped, mode {3}) <- {4}",
 							tableName,
 							executedStatements,
 							failedStatements,
@@ -740,7 +750,7 @@ namespace OpenSim.Addons.SqlDataBackup
 					}
 					else if (verbose)
 					{
-						MainConsole.Instance.Output("Importiert: {0} ({1} Statements, Modus {2}) <- {3}", tableName, executedStatements, conflictMode.ToString().ToLowerInvariant(), filePath);
+						MainConsole.Instance.Output("Imported: {0} ({1} statements, mode {2}) <- {3}", tableName, executedStatements, conflictMode.ToString().ToLowerInvariant(), filePath);
 					}
 				}
 			}
@@ -760,7 +770,7 @@ namespace OpenSim.Addons.SqlDataBackup
 					string preparedScript = PrepareScriptForImport(targetConn, tableName, scriptText, conflictMode, out skippedTable);
 					if (skippedTable)
 					{
-						MainConsole.Instance.Output("Copy uebersprungen: {0} existiert bereits im Ziel, Modus skip.", tableName);
+						MainConsole.Instance.Output("Copy skipped: {0} already exists in target, mode skip.", tableName);
 						return;
 					}
 
@@ -768,7 +778,7 @@ namespace OpenSim.Addons.SqlDataBackup
 					if (verbose || failedStatements > 0)
 					{
 						MainConsole.Instance.Output(
-							"Copy abgeschlossen: {0} ({1} Zeilen, {2} beim Lesen uebersprungen, {3} Statements ok, {4} Fehler, Modus {5})",
+							"Copy completed: {0} ({1} rows, {2} skipped while reading, {3} statements ok, {4} errors, mode {5})",
 							tableName,
 							rowCount,
 							skippedRows,
@@ -797,11 +807,11 @@ namespace OpenSim.Addons.SqlDataBackup
 				if (!result.SourceExists || !result.TargetExists)
 				{
 					if (!result.SourceExists && !result.TargetExists)
-						result.Summary = "fehlt in Quelle und Ziel";
+						result.Summary = "missing in source and target";
 					else if (!result.SourceExists)
-						result.Summary = "fehlt in Quelle";
+						result.Summary = "missing in source";
 					else
-						result.Summary = "fehlt im Ziel";
+						result.Summary = "missing in target";
 
 					if (verbose)
 						MainConsole.Instance.Output("Compare {0}: {1}", tableName, result.Summary);
@@ -843,30 +853,30 @@ namespace OpenSim.Addons.SqlDataBackup
 			EnsureSafeTableName(tableName);
 
 			if (checkScope == CheckScope.Source || checkScope == CheckScope.Both)
-				RunCheckTable(m_connectionString, tableName, "Quelle");
+				RunCheckTable(m_connectionString, tableName, "source");
 
 			if (checkScope == CheckScope.Target || checkScope == CheckScope.Both)
-				RunCheckTable(m_targetConnectionString, tableName, "Ziel");
+				RunCheckTable(m_targetConnectionString, tableName, "target");
 		}
 
 		private bool RepairTable(string tableName, ConflictMode conflictMode)
 		{
 			EnsureSafeTableName(tableName);
-			MainConsole.Instance.Output("Repair prueft {0}...", tableName);
+			MainConsole.Instance.Output("Repair checking {0}...", tableName);
 
-			RunRepairTableSql(m_connectionString, tableName, "Quelle");
-			RunRepairTableSql(m_targetConnectionString, tableName, "Ziel");
+			RunRepairTableSql(m_connectionString, tableName, "source");
+			RunRepairTableSql(m_targetConnectionString, tableName, "target");
 
 			TableComparisonResult before = CompareTableAgainstTarget(tableName, false);
 			if (before.IsIdentical)
 			{
-				MainConsole.Instance.Output("Repair {0}: keine Aktion noetig, Quelle und Ziel sind identisch.", tableName);
+				MainConsole.Instance.Output("Repair {0}: no action needed, source and target are identical.", tableName);
 				return false;
 			}
 
 			CopyTableToTarget(tableName, conflictMode, false);
 			TableComparisonResult after = CompareTableAgainstTarget(tableName, false);
-			MainConsole.Instance.Output("Repair {0}: {1}", tableName, after.IsIdentical ? "erfolgreich synchronisiert" : after.Summary);
+			MainConsole.Instance.Output("Repair {0}: {1}", tableName, after.IsIdentical ? "successfully synchronized" : after.Summary);
 			return true;
 		}
 
@@ -921,7 +931,7 @@ namespace OpenSim.Addons.SqlDataBackup
 							catch (Exception ex)
 							{
 								skippedRows++;
-								m_log.Error("[SQL DATA BACKUP]: Export-Eintrag uebersprungen fuer Tabelle " + tableName, ex);
+								m_log.Error("[SQL DATA BACKUP]: Export row skipped for table " + tableName, ex);
 								continue;
 							}
 
@@ -931,7 +941,7 @@ namespace OpenSim.Addons.SqlDataBackup
 							{
 								splitMode = true;
 								FinalizePartWrite(filePath, basePath, tableName, currentPart, footer, ++partCount, splitMode);
-								MainConsole.Instance.Output("Split {0} geschrieben: {1}", partCount, BuildSplitPartPath(basePath, partCount));
+								MainConsole.Instance.Output("Split {0} written: {1}", partCount, BuildSplitPartPath(basePath, partCount));
 								currentPart = new StringBuilder(nextHeader.Length + footer.Length + 1024);
 								currentPart.Append(nextHeader);
 								currentBytes = enc.GetByteCount(nextHeader);
@@ -948,7 +958,7 @@ namespace OpenSim.Addons.SqlDataBackup
 			}
 
 			if (currentPart == null)
-				throw new InvalidOperationException("Export-Teil konnte nicht initialisiert werden.");
+				throw new InvalidOperationException("Export part could not be initialized.");
 
 			if (rowCount == 0)
 			{
@@ -959,7 +969,7 @@ namespace OpenSim.Addons.SqlDataBackup
 			{
 				FinalizePartWrite(filePath, basePath, tableName, currentPart, footer, ++partCount, splitMode);
 				if (splitMode)
-					MainConsole.Instance.Output("Split {0} geschrieben: {1}", partCount, BuildSplitPartPath(basePath, partCount));
+					MainConsole.Instance.Output("Split {0} written: {1}", partCount, BuildSplitPartPath(basePath, partCount));
 			}
 		}
 
@@ -996,7 +1006,7 @@ namespace OpenSim.Addons.SqlDataBackup
 							catch (Exception ex)
 							{
 								skippedRows++;
-								m_log.Error("[SQL DATA BACKUP]: Copy-Eintrag uebersprungen fuer Tabelle " + tableName, ex);
+								m_log.Error("[SQL DATA BACKUP]: Copy row skipped for table " + tableName, ex);
 							}
 						}
 					}
@@ -1031,7 +1041,7 @@ namespace OpenSim.Addons.SqlDataBackup
 					return scriptText;
 				case ConflictMode.Error:
 					if (tableExists)
-						throw new InvalidOperationException("Zieltabelle existiert bereits: " + tableName);
+						throw new InvalidOperationException("Target table already exists: " + tableName);
 
 					return scriptText;
 				case ConflictMode.MergeReplace:
@@ -1088,7 +1098,7 @@ namespace OpenSim.Addons.SqlDataBackup
 					{
 						failedStatements++;
 						string preview = statement.Length > 180 ? statement.Substring(0, 180) + "..." : statement;
-						m_log.Error("[SQL DATA BACKUP]: Statement uebersprungen fuer Tabelle " + tableName + " aus " + sourceLabel + " -> " + preview, ex);
+						m_log.Error("[SQL DATA BACKUP]: Statement skipped for table " + tableName + " from " + sourceLabel + " -> " + preview, ex);
 					}
 				}
 			}
@@ -1278,7 +1288,7 @@ namespace OpenSim.Addons.SqlDataBackup
 				}
 			}
 
-			throw new InvalidOperationException("Keine gueltige SQL-Nutzlast fuer Tabelle in Archiv gefunden: " + sourceLabel);
+			throw new InvalidOperationException("No valid SQL payload for table found in archive: " + sourceLabel);
 		}
 
 		private static string EnsureOtbPath(string path)
@@ -1419,13 +1429,13 @@ namespace OpenSim.Addons.SqlDataBackup
 		private static void EnsureSafeTableName(string tableName)
 		{
 			if (!IsSafeTableName(tableName))
-				throw new InvalidOperationException("Unsicherer Tabellenname: " + tableName);
+				throw new InvalidOperationException("Unsafe table name: " + tableName);
 		}
 
 		private void EnsureTargetConnectionConfigured()
 		{
 			if (string.IsNullOrWhiteSpace(m_targetConnectionString))
-				throw new InvalidOperationException("TargetConnectionString fehlt. Diese Funktion benoetigt eine Ziel-Datenbank.");
+				throw new InvalidOperationException("TargetConnectionString is missing. This function requires a target database.");
 		}
 
 		private static string NormalizeCreateStatement(string createStatement)
@@ -1446,7 +1456,7 @@ namespace OpenSim.Addons.SqlDataBackup
 				using (MySqlDataReader reader = createCmd.ExecuteReader())
 				{
 					if (!reader.Read())
-						throw new InvalidOperationException("Tabelle nicht gefunden: " + tableName);
+						throw new InvalidOperationException("Table not found: " + tableName);
 
 					return reader.GetString("Create Table");
 				}
@@ -1497,7 +1507,7 @@ namespace OpenSim.Addons.SqlDataBackup
 			}
 			catch (Exception ex)
 			{
-				m_log.Warn("[SQL DATA BACKUP]: CHECKSUM TABLE nicht verfuegbar fuer " + tableName + ".", ex);
+				m_log.Warn("[SQL DATA BACKUP]: CHECKSUM TABLE is not available for " + tableName + ".", ex);
 				return false;
 			}
 		}
@@ -1509,7 +1519,7 @@ namespace OpenSim.Addons.SqlDataBackup
 				conn.Open();
 				if (!TableExists(conn, tableName))
 				{
-					MainConsole.Instance.Output("Check {0} {1}: Tabelle fehlt.", label, tableName);
+					MainConsole.Instance.Output("Check {0} {1}: table is missing.", label, tableName);
 					return;
 				}
 
@@ -1536,7 +1546,7 @@ namespace OpenSim.Addons.SqlDataBackup
 				conn.Open();
 				if (!TableExists(conn, tableName))
 				{
-					MainConsole.Instance.Output("Repair {0} {1}: Tabelle fehlt.", label, tableName);
+					MainConsole.Instance.Output("Repair {0} {1}: table is missing.", label, tableName);
 					return;
 				}
 
@@ -1558,8 +1568,8 @@ namespace OpenSim.Addons.SqlDataBackup
 				}
 				catch (Exception ex)
 				{
-					m_log.Warn("[SQL DATA BACKUP]: REPAIR TABLE nicht verfuegbar fuer " + label + " " + tableName + ".", ex);
-					MainConsole.Instance.Output("Repair {0} {1}: nicht verfuegbar ({2})", label, tableName, ex.Message);
+					m_log.Warn("[SQL DATA BACKUP]: REPAIR TABLE is not available for " + label + " " + tableName + ".", ex);
+					MainConsole.Instance.Output("Repair {0} {1}: not available ({2})", label, tableName, ex.Message);
 				}
 			}
 		}
@@ -1682,7 +1692,7 @@ namespace OpenSim.Addons.SqlDataBackup
 			}
 
 			if (!Directory.Exists(folderPath))
-				throw new DirectoryNotFoundException("Ordner nicht gefunden: " + folderPath);
+				throw new DirectoryNotFoundException("Folder not found: " + folderPath);
 
 			string[] localFiles = Directory.GetFiles(folderPath, "*" + extension);
 			for (int i = 0; i < localFiles.Length; i++)
@@ -1818,7 +1828,7 @@ namespace OpenSim.Addons.SqlDataBackup
 			}
 			catch (WebException ex)
 			{
-				m_log.Warn("[SQL DATA BACKUP]: Remote-Dateigroesse konnte nicht gelesen werden: " + path, ex);
+				m_log.Warn("[SQL DATA BACKUP]: Remote file size could not be read: " + path, ex);
 				return 0;
 			}
 		}
@@ -1938,15 +1948,18 @@ namespace OpenSim.Addons.SqlDataBackup
 
 		private void ShowUsage()
 		{
-			MainConsole.Instance.Output(m_commandPrefix + " list");
-			MainConsole.Instance.Output(m_commandPrefix + " export <table> <datei.otb|url>");
-			MainConsole.Instance.Output(m_commandPrefix + " export all <ordner|url>");
-			MainConsole.Instance.Output(m_commandPrefix + " import <table> <datei.otb|url> [replace|skip|error|merge-replace|merge-skip]");
-			MainConsole.Instance.Output(m_commandPrefix + " import all <ordner|url> [replace|skip|error|merge-replace|merge-skip]");
-			MainConsole.Instance.Output(m_commandPrefix + " copy <table|all> [replace|skip|error|merge-replace|merge-skip]");
-			MainConsole.Instance.Output(m_commandPrefix + " compare <table|all>");
-			MainConsole.Instance.Output(m_commandPrefix + " check <table|all> [source|target|both]");
-			MainConsole.Instance.Output(m_commandPrefix + " repair <table|all> [replace|skip|error|merge-replace|merge-skip]");
+			MainConsole.Instance.Output("{0} help", m_commandPrefix);
+			MainConsole.Instance.Output("  {0} list", m_commandPrefix);
+			MainConsole.Instance.Output("  {0} export <table> [file.otb|url|folder]", m_commandPrefix);
+			MainConsole.Instance.Output("  {0} export all [folder|url]", m_commandPrefix);
+			MainConsole.Instance.Output("  {0} import <table> <file.otb|url> [mode]", m_commandPrefix);
+			MainConsole.Instance.Output("  {0} import all <folder|url> [mode]", m_commandPrefix);
+			MainConsole.Instance.Output("  {0} copy <table|all> [mode]", m_commandPrefix);
+			MainConsole.Instance.Output("  {0} compare <table|all>", m_commandPrefix);
+			MainConsole.Instance.Output("  {0} check <table|all> [source|target|both]", m_commandPrefix);
+			MainConsole.Instance.Output("  {0} repair <table|all> [mode]", m_commandPrefix);
+			MainConsole.Instance.Output("  mode: replace | skip | error | merge-replace | merge-skip");
+			MainConsole.Instance.Output("  Tip: 'help Backup' is intentionally short; use '{0} help' for details.", m_commandPrefix);
 		}
 	}
 }
