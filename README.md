@@ -39,7 +39,7 @@ BackupFolder = "backupOTB"
 ; Harte Obergrenze fuer die geschaetzte Groesse einer einzelnen Tabelle
 MaxSingleTableExportBytes = 1073741824
 ; Maximale Groesse eines einzelnen OTB-Teils
-MaxOtbPartBytes = 536870912
+MaxOtbPartBytes = 2147483648
 ```
 
 ## Konsolenbefehle
