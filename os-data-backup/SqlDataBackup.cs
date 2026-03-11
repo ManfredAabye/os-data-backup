@@ -24,7 +24,7 @@ namespace OpenSim.Addons.SqlDataBackup
 		private static readonly Regex s_safeTableNameRegex = new Regex("^[A-Za-z0-9_]+$", RegexOptions.Compiled);
 		private const string OtbExtension = ".otb";
 		private const long DefaultMaxSingleTableExportBytes = 0;
-		private const long DefaultMaxOtbPartBytes = 512L * 1024L * 1024L;
+		private const long DefaultMaxOtbPartBytes = 2048L * 1024L * 1024L;
 
 		private readonly bool m_enabled;
 		private readonly string m_connectionString;
