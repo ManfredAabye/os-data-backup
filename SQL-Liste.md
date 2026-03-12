@@ -2,54 +2,54 @@
 
 ## SQL-DML (Data Manipulation Language)
 
-**SELECT** - dient zum Abfragen und Auslesen von Daten aus einer oder mehreren Tabellen
-**SELECT DISTINCT** - liefert nur eindeutige (einmalige) Werte zurück und unterdrückt Duplikate
-**SELECT INTO** - erstellt eine neue Tabelle und fügt die Abfrageergebnisse direkt ein
-**FROM** - gibt die Tabelle(n) an, aus denen die Daten abgefragt werden sollen
-**WHERE** - filtert Datensätze basierend auf einer bestimmten Bedingung
-**GROUP BY** - fasst Datensätze mit gleichen Werten in Gruppen zusammen
-**HAVING** - filtert Gruppen basierend auf einer Bedingung (wie WHERE für Gruppen)
-**ORDER BY** - sortiert das Abfrageergebnis aufsteigend oder absteigend
-**JOIN** - verbindet Datensätze aus zwei oder mehr Tabellen miteinander
-**INNER JOIN** - gibt nur Datensätze zurück, die in beiden verknüpften Tabellen vorhanden sind
-**LEFT JOIN** - gibt alle Datensätze der linken Tabelle und passende der rechten Tabelle zurück
-**RIGHT JOIN** - gibt alle Datensätze der rechten Tabelle und passende der linken Tabelle zurück
-**FULL OUTER JOIN** - gibt alle Datensätze zurück, wenn sie in einer der beiden Tabellen vorhanden sind
-**CROSS JOIN** - bildet das kartesische Produkt aller Datensätze beider Tabellen
-**UNION** - kombiniert die Ergebnismengen mehrerer Abfragen und entfernt Duplikate
-**UNION ALL** - kombiniert die Ergebnismengen mehrerer Abfragen und behält Duplikate bei
-**INTERSECT** - gibt nur die Datensätze zurück, die in allen Abfragen vorkommen
-**EXCEPT** - gibt Datensätze der ersten Abfrage zurück, die nicht in der zweiten vorkommen
-**INSERT INTO** - fügt neue Datensätze in eine Tabelle ein
-**INSERT INTO SELECT** - übernimmt Abfrageergebnisse und fügt sie in eine andere Tabelle ein
-**UPDATE** - ändert vorhandene Datensätze in einer Tabelle
-**DELETE** - entfernt vorhandene Datensätze aus einer Tabelle
-**MERGE** - führt Einfüge-, Änderungs- und Löschoperationen in einem Befehl zusammen
-**TRUNCATE** - entfernt alle Datensätze einer Tabelle, behält aber die Tabellenstruktur bei
-**WITH** - definiert temporäre Abfrageergebnisse für komplexe Abfragen
-**IN** - prüft, ob ein Wert in einer Liste oder Teilabfrage vorkommt
-**BETWEEN** - prüft, ob ein Wert innerhalb eines bestimmten Bereichs liegt
-**LIKE** - sucht nach einem bestimmten Muster in einer Textspalte
-**IS NULL** - prüft, ob ein Wert NULL (leer/unbekannt) ist
-**IS NOT NULL** - prüft, ob ein Wert nicht NULL ist
-**EXISTS** - prüft, ob eine Unterabfrage mindestens einen Datensatz liefert
-**ANY** - vergleicht einen Wert mit mindestens einem Wert einer Unterabfrage
-**ALL** - vergleicht einen Wert mit allen Werten einer Unterabfrage
-**CASE** - ermöglicht Fallunterscheidungen und bedingte Berechnungen
-**COALESCE** - gibt den ersten Nicht-NULL-Wert aus einer Liste zurück
-**NULLIF** - gibt NULL zurück, wenn zwei Ausdrücke gleich sind, sonst den ersten Ausdruck
-**CAST** - wandelt einen Wert in einen anderen Datentyp um
-**CONVERT** - wandelt einen Wert in einen anderen Datentyp um (systemspezifisch)
-**COUNT** - zählt die Anzahl der Datensätze
-**SUM** - berechnet die Summe aller Werte einer Spalte
-**AVG** - berechnet den Durchschnittswert aller Werte einer Spalte
-**MIN** - findet den kleinsten Wert einer Spalte
-**MAX** - findet den größten Wert einer Spalte
-**TOP** - begrenzt die Anzahl der zurückgegebenen Datensätze (SQL Server)
-**LIMIT** - begrenzt die Anzahl der zurückgegebenen Datensätze (MySQL, PostgreSQL)
-**OFFSET** - überspringt eine bestimmte Anzahl von Datensätzen (für Paginierung)
-**FETCH** - begrenzt die Anzahl der zurückgegebenen Datensätze (Oracle, DB2)
-**FOR UPDATE** - sperrt die ausgewählten Datensätze für andere Transaktionen
+    **SELECT** - dient zum Abfragen und Auslesen von Daten aus einer oder mehreren Tabellen
+    **SELECT DISTINCT** - liefert nur eindeutige (einmalige) Werte zurück und unterdrückt Duplikate
+    **SELECT INTO** - erstellt eine neue Tabelle und fügt die Abfrageergebnisse direkt ein
+    **FROM** - gibt die Tabelle(n) an, aus denen die Daten abgefragt werden sollen
+    **WHERE** - filtert Datensätze basierend auf einer bestimmten Bedingung
+    **GROUP BY** - fasst Datensätze mit gleichen Werten in Gruppen zusammen
+    **HAVING** - filtert Gruppen basierend auf einer Bedingung (wie WHERE für Gruppen)
+    **ORDER BY** - sortiert das Abfrageergebnis aufsteigend oder absteigend
+    **JOIN** - verbindet Datensätze aus zwei oder mehr Tabellen miteinander
+    **INNER JOIN** - gibt nur Datensätze zurück, die in beiden verknüpften Tabellen vorhanden sind
+    **LEFT JOIN** - gibt alle Datensätze der linken Tabelle und passende der rechten Tabelle zurück
+    **RIGHT JOIN** - gibt alle Datensätze der rechten Tabelle und passende der linken Tabelle zurück
+    **FULL OUTER JOIN** - gibt alle Datensätze zurück, wenn sie in einer der beiden Tabellen vorhanden sind
+    **CROSS JOIN** - bildet das kartesische Produkt aller Datensätze beider Tabellen
+    **UNION** - kombiniert die Ergebnismengen mehrerer Abfragen und entfernt Duplikate
+    **UNION ALL** - kombiniert die Ergebnismengen mehrerer Abfragen und behält Duplikate bei
+    **INTERSECT** - gibt nur die Datensätze zurück, die in allen Abfragen vorkommen
+    **EXCEPT** - gibt Datensätze der ersten Abfrage zurück, die nicht in der zweiten vorkommen
+    **INSERT INTO** - fügt neue Datensätze in eine Tabelle ein
+    **INSERT INTO SELECT** - übernimmt Abfrageergebnisse und fügt sie in eine andere Tabelle ein
+    **UPDATE** - ändert vorhandene Datensätze in einer Tabelle
+    **DELETE** - entfernt vorhandene Datensätze aus einer Tabelle
+    **MERGE** - führt Einfüge-, Änderungs- und Löschoperationen in einem Befehl zusammen
+    **TRUNCATE** - entfernt alle Datensätze einer Tabelle, behält aber die Tabellenstruktur bei
+    **WITH** - definiert temporäre Abfrageergebnisse für komplexe Abfragen
+    **IN** - prüft, ob ein Wert in einer Liste oder Teilabfrage vorkommt
+    **BETWEEN** - prüft, ob ein Wert innerhalb eines bestimmten Bereichs liegt
+    **LIKE** - sucht nach einem bestimmten Muster in einer Textspalte
+    **IS NULL** - prüft, ob ein Wert NULL (leer/unbekannt) ist
+    **IS NOT NULL** - prüft, ob ein Wert nicht NULL ist
+    **EXISTS** - prüft, ob eine Unterabfrage mindestens einen Datensatz liefert
+    **ANY** - vergleicht einen Wert mit mindestens einem Wert einer Unterabfrage
+    **ALL** - vergleicht einen Wert mit allen Werten einer Unterabfrage
+    **CASE** - ermöglicht Fallunterscheidungen und bedingte Berechnungen
+    **COALESCE** - gibt den ersten Nicht-NULL-Wert aus einer Liste zurück
+    **NULLIF** - gibt NULL zurück, wenn zwei Ausdrücke gleich sind, sonst den ersten Ausdruck
+    **CAST** - wandelt einen Wert in einen anderen Datentyp um
+    **CONVERT** - wandelt einen Wert in einen anderen Datentyp um (systemspezifisch)
+    **COUNT** - zählt die Anzahl der Datensätze
+    **SUM** - berechnet die Summe aller Werte einer Spalte
+    **AVG** - berechnet den Durchschnittswert aller Werte einer Spalte
+    **MIN** - findet den kleinsten Wert einer Spalte
+    **MAX** - findet den größten Wert einer Spalte
+    **TOP** - begrenzt die Anzahl der zurückgegebenen Datensätze (SQL Server)
+    **LIMIT** - begrenzt die Anzahl der zurückgegebenen Datensätze (MySQL, PostgreSQL)
+    **OFFSET** - überspringt eine bestimmte Anzahl von Datensätzen (für Paginierung)
+    **FETCH** - begrenzt die Anzahl der zurückgegebenen Datensätze (Oracle, DB2)
+    **FOR UPDATE** - sperrt die ausgewählten Datensätze für andere Transaktionen
 
 ## SQL-DDL (Data Definition Language)
 
