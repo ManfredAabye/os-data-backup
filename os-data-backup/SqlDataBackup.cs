@@ -165,28 +165,36 @@ namespace OpenSim.Addons.SqlDataBackup
 
 		private void RegisterCommands()
 		{
-			RegisterExecutableCommand("help");
-			RegisterExecutableCommand("list");
-			RegisterExecutableCommand("export");
-			RegisterExecutableCommand("import");
-			RegisterExecutableCommand("copy");
-			RegisterExecutableCommand("compare");
-			RegisterExecutableCommand("check");
-			RegisterExecutableCommand("repair");
+			MainConsole.Instance.Commands.AddCommand(
+				"Backup", false,
+				m_commandPrefix,
+				m_commandPrefix + " help",
+				"SQL data backup commands.",
+				HandleCommand);
+
+			RegisterExecutableCommand("help", m_commandPrefix + " help", "Show sqlbackup command help.");
+			RegisterExecutableCommand("list", m_commandPrefix + " list", "List all source database tables.");
+			RegisterExecutableCommand("export", m_commandPrefix + " export <table|all> [<datei.otb|ordner|url>]", "Export one table or all tables to OTB backup files.");
+			RegisterExecutableCommand("import", m_commandPrefix + " import <replace|skip|error|merge-replace|merge-skip> <table|all> <datei.otb|ordner|url>", "Import one table or all tables from OTB backup files.");
+			RegisterExecutableCommand("copy", m_commandPrefix + " copy <replace|skip|error|merge-replace|merge-skip> <table|all>", "Copy one table or all tables from source DB to target DB.");
+			RegisterExecutableCommand("compare", m_commandPrefix + " compare <table|all>", "Compare source and target tables (schema, rows, checksum).");
+			RegisterExecutableCommand("check", m_commandPrefix + " check <source|target|both> <table|all>", "Run CHECK TABLE on source and/or target tables.");
+			RegisterExecutableCommand("repair", m_commandPrefix + " repair <replace|skip|error|merge-replace|merge-skip> <table|all>", "Run REPAIR TABLE and synchronize differences to target DB.");
 		}
 
-		private void RegisterExecutableCommand(string commandSuffix)
+		private void RegisterExecutableCommand(string commandSuffix, string usage, string helpText)
 		{
 			string fullCommand = m_commandPrefix + " " + commandSuffix;
 			MainConsole.Instance.Commands.AddCommand(
 				"Backup", false,
 				fullCommand,
-				fullCommand,
-				string.Empty,
+				usage,
+				helpText,
 				HandleCommand);
 		}
 		private void helptxt()
 		{
+			MainConsole.Instance.Output("SQL Data Backup commands:");
 			for (int i = 0; i < s_helpTextLines.Length; i++)
 				MainConsole.Instance.Output(s_helpTextLines[i]);
 		}
