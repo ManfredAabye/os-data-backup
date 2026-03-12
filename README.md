@@ -6,15 +6,16 @@ Das Addon stellt Robust-Konsolenkommandos bereit, mit denen einzelne Tabellen od
 
 Format pro Tabelle:
 
-- Dateiendung: `.otb`
+- Dateiendung: (OpenSim Table Backup) `.otb`
 - Inhalt: `tar.gz` (gzip-komprimiertes tar-Archiv)
 - Nutzlast: eine SQL-Datei (Schema + Daten) fuer genau eine Tabelle
 - Bei grossen Exporten kann eine Tabelle auf mehrere Teile gesplittet werden: `.part0001.otb`, `.part0002.otb`, ...
 
 ## Funktionen
 
+- Hilfe anzeigen (`help`)
 - Tabellen auflisten (`list`)
-- Einzelne Tabelle exportieren (`export <table>` oder `export <table> <datei.otb|url>`)
+- Einzelne Tabelle exportieren (`export <table>` oder `export <table> <datei.otb|ordner|url>`)
 - Alle Tabellen exportieren (`export all <ordner|url>`)
 - Tabellen importieren (`import <modus> <table|all> <datei.otb|ordner|url>`)
 - Tabellen direkt in eine zweite MySQL-Datenbank kopieren (`copy <modus> <table|all>`)
@@ -60,9 +61,10 @@ MaxOtbPartBytes = 2147483648
 Mit Standard-Praefix:
 
 ```text
+sqlbackup help
 sqlbackup list
 sqlbackup export <table>
-sqlbackup export <table> <datei.otb|url>
+sqlbackup export <table> <datei.otb|ordner|url>
 sqlbackup export all <ordner|url>
 sqlbackup import replace <table|all> <datei.otb|ordner|url>
 sqlbackup import skip <table|all> <datei.otb|ordner|url>
@@ -85,6 +87,8 @@ sqlbackup repair merge-replace <table|all>
 sqlbackup repair merge-skip <table|all>
 ```
 
+Hinweis: Die Kommandos sind im Addon einzeln registriert (z. B. `sqlbackup import replace`, `sqlbackup copy skip`, `sqlbackup check both`) und nicht als eine einzige ueberladene Sammelfunktion umgesetzt.
+
 ## Konfliktmodi
 
 - `replace`: Zielobjekte werden ersetzt. Beim Import aus OTB bedeutet das das bisherige Verhalten mit `DROP TABLE IF EXISTS` und anschliessendem Neuaufbau.
@@ -99,6 +103,68 @@ sqlbackup repair merge-skip <table|all>
 - Einzelne Export-/Importkommandos koennen ebenfalls direkt mit einer Datei-URL oder einem WebDAV-Ordner arbeiten.
 - Fuer WebDAV werden `RemoteUser` und `RemotePassword` verwendet.
 - Typische Beispiele sind Nextcloud, ownCloud, WebDAV-faehige NAS-Systeme oder ein externer HTTPS/WebDAV-Backup-Server.
+
+### Unterstuetzte Ziele und Quellen (alle Varianten)
+
+- Lokaler relativer Ordner
+
+  Beispiel: `backupOTB`
+
+  Verwendbar fuer `BackupFolder`, `export all`, `import all`.
+
+- Lokaler absoluter Ordner (Windows)
+
+  Beispiel: `D:/opensim-backups` oder `D:\\opensim-backups`
+
+  Verwendbar fuer `BackupFolder`, `export all`, `import all`.
+
+- Netzwerkfreigabe (UNC)
+
+  Beispiel: `\\nas01\\opensim\\backups`
+
+  Verwendbar fuer `BackupFolder`, `export all`, `import all`.
+
+- Einzelne lokale OTB-Datei
+
+  Beispiel: `D:/opensim-backups/users.otb`
+
+  Verwendbar fuer `export <table> <datei...>` und `import <modus> <table> <datei...>`.
+
+- HTTP/HTTPS WebDAV-Ordner
+
+  Beispiel: `https://cloud.example.org/remote.php/dav/files/admin/opensim-backups/`
+
+  Verwendbar fuer `BackupFolder`, `export all`, `import all`.
+
+  Wichtig: Das ist ein WebDAV-Endpunkt. `remote.php` ist hier der API-Einstieg, keine Datei fuer SQL-Inhalte.
+
+- HTTP/HTTPS WebDAV-Datei
+
+  Beispiel: `https://cloud.example.org/remote.php/dav/files/admin/opensim-backups/users.otb`
+
+  Verwendbar fuer `export <table> <url>` und `import <modus> <table> <url>`.
+
+- Export einer Tabelle in einen Ordnerpfad
+
+  Wenn bei `sqlbackup export <table> <ziel>` das Ziel als Ordner erkannt wird, wird automatisch ein Dateiname erzeugt: `<tabellenname>_yyyyMMdd_HHmmss.otb`.
+
+  Gilt fuer lokale Ordner und WebDAV-Ordner.
+
+- Dateiendungsergaenzung
+
+  Wenn bei Einzel-Export/Import die Endung fehlt, wird `.otb` automatisch angehaengt.
+
+- Erkennung "all" vs. Einzeldatei
+
+  `export all` und `import ... all` erwarten Ordner/URL-Ordner.
+
+  `export <table> ...` und `import ... <table> ...` erwarten eine Datei oder einen Zielordner (bei Export).
+
+- Authentifizierung bei Remote-Zielen
+
+  Fuer WebDAV nutzt das Addon Basic Auth mit `RemoteUser` und `RemotePassword`.
+
+  Der Server muss `PUT`, `GET`, `DELETE`, `PROPFIND` unterstuetzen.
 
 ## Verhalten
 
@@ -120,10 +186,13 @@ sqlbackup repair merge-skip <table|all>
 sqlbackup list
 sqlbackup export users
 sqlbackup export users backups/users.otb
-sqlbackup export all https://backup.example.org/remote.php/dav/files/admin/opensim/
+sqlbackup export users D:/opensim-backups/
+sqlbackup export users https://cloud.example.org/remote.php/dav/files/admin/opensim-backups/users.otb
+sqlbackup export all https://cloud.example.org/remote.php/dav/files/admin/opensim-backups/
 sqlbackup export all backups
 sqlbackup import replace users backups/users.otb
-sqlbackup import merge-skip all https://backup.example.org/remote.php/dav/files/admin/opensim/
+sqlbackup import replace users https://cloud.example.org/remote.php/dav/files/admin/opensim-backups/users.otb
+sqlbackup import merge-skip all https://cloud.example.org/remote.php/dav/files/admin/opensim-backups/
 sqlbackup copy replace users
 sqlbackup compare all
 sqlbackup check both all
@@ -138,7 +207,7 @@ sqlbackup import replace all backups
 - Import fuehrt das SQL aus dem `.otb` Archiv direkt gegen die konfigurierte MySQL-Datenbank aus.
 - Bei `merge-replace` und `merge-skip` wird das SQL fuer bestehende Tabellen angepasst statt die Tabelle zu droppen.
 - WebDAV-Zugriffe erfolgen ueber HTTP/HTTPS. Der Zielserver muss `PUT`, `GET`, `DELETE` und `PROPFIND` unterstuetzen.
-- Bei `all` werden Fehler pro Tabelle/Festdatei gemeldet, der Rest laeuft weiter.
+- Bei `all` werden Fehler pro Tabelle/Datei gemeldet, der Rest laeuft weiter.
 
 ## Einschraenkungen
 
@@ -168,7 +237,7 @@ Backup auf WebDAV/Cloud:
 ```ini
 [SqlDataBackup]
 Enabled = true
-BackupFolder = "https://backup.example.org/remote.php/dav/files/admin/opensim/"
+BackupFolder = "https://cloud.example.org/remote.php/dav/files/admin/opensim-backups/"
 RemoteUser = "admin"
 RemotePassword = "secret"
 RemoteTimeoutSeconds = 300
